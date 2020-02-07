@@ -4,16 +4,22 @@
 #include <unistd.h>
 #include <pthread.h>
 
+typedef struct _Estructura{
+  int random;
+  int num;
+}Estructura;
+
 void* cube(void* arg){
   int* x=NULL;
-  int* args=(int*)arg;
+  int n=((Estructura*)arg)->num;
+  int wait=((Estructura*)arg)->random;
 
-  sleep(args[1]);
+  sleep(wait);
   x=malloc(sizeof(int));
   if (x==NULL)
     return NULL;
 
-  (*x)=args[0]*args[0]*args[0];
+  (*x)=n*n*n;
   return (void*)x;
 }
 
@@ -22,7 +28,7 @@ void* cube(void* arg){
 int main(int argc, char *argv[]) {
   pthread_t* hilos=NULL;
   int numHilos, error=0;
-  int args[2];
+  Estructura** args=NULL;
   int *retval=NULL;
 
   if (argc!=2 || argv[1]<=0)
@@ -30,17 +36,23 @@ int main(int argc, char *argv[]) {
 
   numHilos=atoi(argv[1]);
   hilos=malloc(numHilos*sizeof(pthread_t));
+  args=malloc(numHilos*sizeof(Estructura*));
+  for (int i=0; i<numHilos; i++){
+    args[i]=malloc(sizeof(Estructura));
+  }
 
   for (int i=0; i<numHilos; i++){
-    args[0]=i+1;
-    args[1]=rand()%11;
+    args[i]->num=i+1;
+    args[i]->random=rand()%11;
 
-    error = pthread_create(&hilos[i], NULL, cube, (void*)args);
+    error = pthread_create(&hilos[i], NULL, cube, args[i]);
   	if(error != 0){
   		fprintf(stderr, "pthread_create: %s\n", strerror(error));
   		exit(EXIT_FAILURE);
   	}
+  }
 
+  for (int i=0; i<numHilos; i++){
     error = pthread_join(hilos[i], (void*)&retval);
     if(error != 0){
       fprintf(stderr, "pthread_join: %s\n", strerror(error));
@@ -48,9 +60,14 @@ int main(int argc, char *argv[]) {
     }
 
     fprintf(stdout, "%d ", *retval);
+    free(retval);
   }
 
 
 	printf("El programa %s termino correctamente \n", argv[0]);
-	exit(EXIT_SUCCESS);
+  for (int i=0; i<numHilos; i++){
+    free(args[i]);
+  }
+  free(args);
+  exit(EXIT_SUCCESS);
 }
