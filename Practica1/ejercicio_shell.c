@@ -13,10 +13,11 @@ int main(){
   char *buffer=NULL;
   size_t num_bytes;
   wordexp_t command;
+  int size;
   int status;
 
-  while(getline(&buffer, &num_bytes, stdin) != EOF){
-    buffer[strlen(buffer)-1] = '\0';
+  while((size=getline(&buffer, &num_bytes, stdin)) != EOF){
+    buffer[size-1] = '\0';
     pid = fork();
 
     if (pid < 0) return EXIT_FAILURE;
@@ -24,10 +25,11 @@ int main(){
     else if (pid > 0){ /* padre */
       wait(&status);
       if (WIFEXITED(status)){
-        fprintf(stderr, "Exited with value %d\n", WEXITSTATUS(status));
+        fprintf(stderr, "\nExited with value %d\n\n", WEXITSTATUS(status));
       }
-      fprintf(stderr, "Terminated by signal %d\n", WTERMSIG(status));
-
+      if (WIFSIGNALED(status)){
+        fprintf(stderr, "\nTerminated by signal %d\n\n", WTERMSIG(status));
+      }
     }
 
     else{ /* hijo */
@@ -36,9 +38,11 @@ int main(){
       }
       execvp(command.we_wordv[0], command.we_wordv);
       wordfree(&command);
+      exit(EXIT_FAILURE);
     }
     fprintf(stdout, "\n");
   }
 
+  free(buffer);
   return EXIT_SUCCESS;
 }
