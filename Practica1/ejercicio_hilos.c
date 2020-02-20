@@ -21,6 +21,14 @@ typedef struct _Estructura{
 }Estructura;
 
 
+/**
+ * Nombre de la funcion: main
+ * Parametros: arg: un puntero a void con los argumentos
+ * Descripcion: cube calcula el cubo de un numero pasado como argumento
+ *              en el puntero arg
+ * Return: NULL si algo falla durante la ejecucion
+ *         el cubo del numero pasado como argumento
+ */
 void* cube(void* arg){
   int* x=NULL;
   int n=((Estructura*)arg)->num;
@@ -36,7 +44,13 @@ void* cube(void* arg){
 }
 
 
-
+/**
+ * Nombre de la funcion: main
+ * Parametros: 
+ * Descripcion: funcion principal del programa
+ * Return: EXIT_FAILURE si algo falla durante la ejecucion
+ * 				 EXIT_SUCCES si se ejecuta correctamente
+ */
 int main(int argc, char *argv[]) {
   pthread_t* hilos=NULL;
   int numHilos, error=0;

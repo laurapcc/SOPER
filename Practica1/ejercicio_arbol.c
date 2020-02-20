@@ -17,6 +17,13 @@
 
 #define NUM_PROC 3
 
+/**
+ * Nombre de la funcion: main
+ * Parametros: 
+ * Descripcion: funcion principal del programa
+ * Return: EXIT_FAILURE si algo falla durante la ejecucion
+ * 				 EXIT_SUCCES si se ejecuta correctamente
+ */
 int main(void){
   pid_t pid; 
 
