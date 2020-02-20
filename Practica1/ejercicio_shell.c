@@ -1,3 +1,12 @@
+/****************************************************************
+* Nombre: ejercicio_shell
+* Autores: Jorge de Miguel y Laura de Paz
+* Grupo de prácticas: 2202
+* Fecha: 15/02/2020
+* Descripción: crea una shell en la que ejecutar comandos
+*              mediante el uso de fork() y execv() 
+****************************************************************/
+
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <stdio.h>

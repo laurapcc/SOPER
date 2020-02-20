@@ -1,114 +1,138 @@
+/****************************************************************
+* Nombre: ejercicio_pipes
+* Autores: Jorge de Miguel y Laura de Paz
+* Grupo de prácticas: 2202
+* Fecha: 19/02/20
+* Descripción: crea 2 procesos hijos y 2 pipes mediante las
+* 						 cuales se comunica con ellos
+****************************************************************/
+
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <time.h>
 
-#define READ 0
-#define WRITE 1
+#define FILE1 "numero_leido.txt"
 
 int main(void) {
 	int fd1[2];
-  int fd2[2];
 
-	char readbuffer[80];
-  
 	int pipe_status1 = pipe(fd1);
-  int pipe_status2 = pipe(fd2);
- 	if(pipe_status1 == -1 || pipe_status2 == -1){
+	if(pipe_status1 == -1)
+	{
 		perror("pipe");
 		exit(EXIT_FAILURE);
 	}
 
-	pid_t pid1 = fork();
-	if(pid1 == -1){
-		perror("fork1");
+	pid_t childpid = fork();
+	if(childpid == -1)
+	{
+		perror("fork");
 		exit(EXIT_FAILURE);
 	}
 
-	if (pid1 == 0) { /* hijo 1 */
-		close(fd1[READ]);
+	if (childpid == 0) {
+		/* Cierre del descriptor de entrada en el hijo */
+		close(fd1[0]);
 
-    srand(time(NULL));
-    int x = rand()%100 + 1; /* num aleatorio entre 1 y 100 */
-    char num[20];
-    sprintf(num, "%d", x);
-    
-		ssize_t nbytes = write(fd1[WRITE], num, sizeof(num)+1);
-		if(nbytes == -1){
-			perror("write hijo");
+		/* Enviar el número aleatorio vía descriptor de salida */
+		/* sizeof(int) < PIPE_BUF así que no hay escrituras cortas */
+		srand(time(NULL));
+    int aleat = rand()%100 + 1;
+    ssize_t nbytes = write(fd1[1], &aleat, sizeof(int));
+		if(nbytes == -1)
+		{
+			perror("write");
 			exit(EXIT_FAILURE);
 		}
 
-		printf("x = %d\n", x);
+		printf("He escrito el número %d en el pipe\n", aleat);
 		exit(EXIT_SUCCESS);
 	}
 
-  else { /* padre */
-    close(fd1[WRITE]);
-    pid_t pid2 = fork();
+  else {
+		/* Cierre del descriptor de salida en el padre */
+		close(fd1[1]);
 
-    if (pid2 == -1){
-      perror("fork2");
-		  exit(EXIT_FAILURE);
+		/* Creación de la segunda pipe */
+		int fd2[2];
+		int pipe_status2 = pipe(fd2);
+		if(pipe_status2 == -1)
+		{
+			perror("pipe");
+			exit(EXIT_FAILURE);
+		}
+
+    /* Creación del segundo hijo */
+    pid_t childpid2 = fork();
+  	if(childpid2 == -1)
+  	{
+  		perror("fork");
+  		exit(EXIT_FAILURE);
+  	}
+
+    if (childpid2 == 0) {
+      /* Cierre del descriptor de salida en el segundo hijo */
+  		close(fd2[1]);
+
+      ssize_t nbytes2 = 0;
+      int readNum2;
+      nbytes2 = read(fd2[0], &readNum2, sizeof(int));
+      if(nbytes2 == -1)
+      {
+        perror("read");
+        exit(EXIT_FAILURE);
+      }
+      if(nbytes2 > 0)
+      {
+        int file = open(FILE1, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+        if(file == -1)
+      	{
+      		perror("open");
+      		exit(EXIT_FAILURE);
+      	}
+        ssize_t size_written = dprintf(file, "%d\n", readNum2);
+    		if(size_written == -1)
+    		{
+          close(file);
+    			perror("write");
+    			exit(EXIT_FAILURE);
+    		}
+        close(file);
+        exit(EXIT_SUCCESS);
+      }
     }
 
-    if (pid2 == 0){ /* hijo 2 */
-      close(fd2[WRITE]);
-      ssize_t nbytes = 0;
-      readbuffer[0] = '\0';
-      do {
-        nbytes = read(fd2[READ], readbuffer, sizeof(readbuffer));
-        if(nbytes == -1){
-          perror("read");
-          exit(EXIT_FAILURE);
-        }
-      } while(nbytes != 0);
+    else{
+      /* Cierre del descriptor de entrada en el padre */
+  		close(fd2[0]);
 
-      printf("hijo2 escribe: x = %s\n", readbuffer);
-
-      FILE *f = NULL;
-      f = fopen("numero_leido.txt", "w");
-      if (f == NULL) {
-        perror("file");
-        exit(EXIT_FAILURE);
-      }
-      if (fprintf(f, "%s", readbuffer) < 0){
-        perror("fprintf");
-        exit(EXIT_FAILURE);
-      }
-      
-      fclose(f);
-      exit(EXIT_SUCCESS);
-    }
-
-    else{ /* padre */
-      close(fd2[READ]);
-
-      /* leer */
-      ssize_t nbytes = 0;
-      do {
-        nbytes = read(fd1[READ], readbuffer, sizeof(readbuffer));
-        if(nbytes == -1){
-          perror("read");
-          exit(EXIT_FAILURE);
-        }
-      } while(nbytes != 0);
-
-      /* escribir */
-      nbytes = write(fd2[WRITE], readbuffer, strlen(readbuffer) + 1);
-      if(nbytes == -1){
-        perror("write padre");
-        exit(EXIT_FAILURE);
-      }
-      
+  		ssize_t nbytes3 = 0;
+			int readNum;
+			nbytes3 = read(fd1[0], &readNum, sizeof(int));
+			if(nbytes3 == -1)
+			{
+				perror("read");
+				exit(EXIT_FAILURE);
+			}
+			if(nbytes3 > 0)
+			{
+        ssize_t nbytesEnv = write(fd2[1], &readNum, sizeof(int));
+    		if(nbytesEnv == -1)
+    		{
+    			perror("write");
+    			exit(EXIT_FAILURE);
+    		}
+  		}
       wait(NULL);
-      exit(EXIT_SUCCESS);
     }
-		
-		
+
+		wait(NULL);
+		exit(EXIT_SUCCESS);
 	}
 }
-

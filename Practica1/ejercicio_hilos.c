@@ -1,13 +1,25 @@
+/****************************************************************
+* Nombre: ejercicio_hilos
+* Autores: Jorge de Miguel y Laura de Paz
+* Grupo de prácticas: 2202
+* Fecha: 10/02/20
+* Descripción: crea tantos hilos como se pase por argumentos
+*              y espera un número aleatorio de segundos por
+*              hilo.
+****************************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <time.h>
 
 typedef struct _Estructura{
   int random;
   int num;
 }Estructura;
+
 
 void* cube(void* arg){
   int* x=NULL;
@@ -33,6 +45,8 @@ int main(int argc, char *argv[]) {
 
   if (argc!=2 || argv[1]<=0)
     return EXIT_FAILURE;
+
+  srand(time(NULL));
 
   numHilos=atoi(argv[1]);
   hilos=malloc(numHilos*sizeof(pthread_t));
