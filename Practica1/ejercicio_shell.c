@@ -25,14 +25,19 @@ int main(){
   int size;
   int status;
 
+  /* Lectura de stdin hasta que reciba EOF */
   while((size=getline(&buffer, &num_bytes, stdin)) != EOF){
-    buffer[size-1] = '\0';
+    buffer[size-1] = '\0'; /* Eliminacion de '\n' */
     pid = fork();
 
-    if (pid < 0) return EXIT_FAILURE;
+    if (pid < 0){
+      perror("fork");
+      exit(EXIT_FAILURE);
+    }
 
-    else if (pid > 0){ /* padre */
-      wait(&status);
+    else if (pid > 0){ /* proceso padre */
+      /* Espera a que el hijo termine su ejecucion y se muestra informacion sobre su estado */
+      wait(&status); 
       if (WIFEXITED(status)){
         fprintf(stderr, "\nExited with value %d\n\n", WEXITSTATUS(status));
       }
@@ -41,13 +46,16 @@ int main(){
       }
     }
 
-    else{ /* hijo */
+    else{ /* proceso hijo */
+      /* Reconocimiento de lo leido en stdin como comando */
       if (wordexp(buffer, &command, 0) != 0){
         return EXIT_FAILURE;
       }
+
+      /* Ejecucion del comando */
       execvp(command.we_wordv[0], command.we_wordv);
       wordfree(&command);
-      exit(EXIT_FAILURE);
+      exit(EXIT_SUCCESS);
     }
     fprintf(stdout, "\n");
   }

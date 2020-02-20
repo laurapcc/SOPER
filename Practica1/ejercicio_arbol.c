@@ -18,20 +18,21 @@
 #define NUM_PROC 3
 
 int main(void){
-  pid_t pid;
+  pid_t pid; 
 
   for (int i=1; i < NUM_PROC; i++){
+		/* Creacion de un nuevo proceso */
 		pid = fork();
-  	if(pid <  0){
+  	if(pid <  0){ /* error en fork */
   		perror("fork");
   		exit(EXIT_FAILURE);
   	}
-  	else if(pid > 0){
+  	else if(pid > 0){ /* proceso padre */
       fprintf(stdout, "PID = %jd\n", (intmax_t)getpid());
 			wait(NULL);
    		exit(EXIT_SUCCESS);
   	}
-		else if (pid == 0){
+		else if (pid == 0){ /* proceso hijo */
 			fprintf(stdout, "PID = %jd   PPID = %jd\n",(intmax_t)getpid(), (intmax_t)getppid());
 		}
   }

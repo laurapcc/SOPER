@@ -16,8 +16,8 @@
 #include <time.h>
 
 typedef struct _Estructura{
-  int random;
-  int num;
+  int random; /* numero aleatorio que se generara en cada hilo */
+  int num; /* orden de creacion del hilo */
 }Estructura;
 
 
@@ -49,6 +49,7 @@ int main(int argc, char *argv[]) {
   srand(time(NULL));
 
   numHilos=atoi(argv[1]);
+  /* reservamos memoria para los hilos y estructura de cada hilo */
   hilos=malloc(numHilos*sizeof(pthread_t));
   args=malloc(numHilos*sizeof(Estructura*));
   for (int i=0; i<numHilos; i++){
@@ -56,9 +57,11 @@ int main(int argc, char *argv[]) {
   }
 
   for (int i=0; i<numHilos; i++){
+    /* se generan los argumentos que se pasaran a la funcion cube */
     args[i]->num=i+1;
     args[i]->random=rand()%11;
 
+    /* se crea un hilo nuevo y se llama a la funcion cubo pasandole args[i] como argumentos */
     error = pthread_create(&hilos[i], NULL, cube, args[i]);
   	if(error != 0){
   		fprintf(stderr, "pthread_create: %s\n", strerror(error));
@@ -67,6 +70,7 @@ int main(int argc, char *argv[]) {
   }
 
   for (int i=0; i<numHilos; i++){
+    /* se espera a que termine el hilo i y recuperamos el valor de retorno de cube */
     error = pthread_join(hilos[i], (void*)&retval);
     if(error != 0){
       fprintf(stderr, "pthread_join: %s\n", strerror(error));
