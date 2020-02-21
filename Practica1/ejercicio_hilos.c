@@ -46,7 +46,7 @@ void* cube(void* arg){
 
 /**
  * Nombre de la funcion: main
- * Parametros: 
+ * Parametros:
  * Descripcion: funcion principal del programa
  * Return: EXIT_FAILURE si algo falla durante la ejecucion
  * 				 EXIT_SUCCES si se ejecuta correctamente
@@ -101,5 +101,6 @@ int main(int argc, char *argv[]) {
     free(args[i]);
   }
   free(args);
+  free(hilos);
   exit(EXIT_SUCCESS);
 }
