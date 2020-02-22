@@ -20,7 +20,13 @@ int main(void) {
 
     printf("En espera de señales (PID = %d)\n", getpid());
     printf("SIGUSR1 y SIGUSR2 están bloqueadas\n");
-    pause();
+    sleep(10);
+    /* Restauracion de la máscara original */
+    if(sigprocmask(SIG_SETMASK, &oset, NULL)){
+        perror("restore sigprocmask");
+        exit(EXIT_FAILURE);
+    }
+    sleep(10);
 
     printf("Fin del programa\n");
     exit(EXIT_SUCCESS);
