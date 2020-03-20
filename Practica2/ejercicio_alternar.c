@@ -30,21 +30,37 @@ int main(void) {
 	}
 
 	if (pid == 0) {
+
         /* Rellenar Código A */
+
 		printf("1\n");
-        /* Rellenar Código B */
+        
+		/* Rellenar Código B */
+		sem_post(sem1);
+		sem_wait(sem2);
+
 		printf("3\n");
-        /* Rellenar Código C */
+        
+		/* Rellenar Código C */
+		sem_post(sem1);
 
 		sem_close(sem1);
 		sem_close(sem2);
 	}
 	else {
-        /* Rellenar Código D */
+        
+		/* Rellenar Código D */
+		sem_wait(sem1);
+		
 		printf("2\n");
-        /* Rellenar Código E */
+        
+		/* Rellenar Código E */
+		sem_post(sem2);
+		sem_wait(sem1);
+		
 		printf("4\n");
-        /* Rellenar Código F */
+        
+		/* Rellenar Código F */
 
 		sem_close(sem1);
 		sem_close(sem2);

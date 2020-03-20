@@ -16,13 +16,13 @@
 
 
 /**
- * Nombre de la funcion: manejador_SIGTERM
+ * Nombre de la funcion: manejador
  * Parametros: sig: senal a manejar
  * Descripcion: funcion que se ejecutara cuando un proceso reciba la senal sig
  * Return: 
  */
-void manejador_SIGTERM(int sig) {
-    fprintf(stdout, "Finalizado PID = %jd\n", (intmax_t)getpid());
+void manejador(int sig) {
+    return;
 }
 
 
@@ -41,87 +41,96 @@ int main(int argc, char* argv[]) {
         exit(EXIT_FAILURE);
     }
     
-    pid_t *pid = NULL;
     int N = atoi(argv[1]);
     int T = atoi(argv[2]);
-    int i,j;
+    pid_t array_pid[N];
+    pid_t pid;
+    sigset_t set;
+    struct sigaction act;
+    int i;
 
-    pid = (pid_t *)malloc(N*sizeof(pid_t));
-    if (pid == NULL){
-        perror("malloc");
-        exit(EXIT_FAILURE);
-    }
-
-    /* primer hijo */
-    pid[0] = fork();
-    if (pid[0] < 0){
-        perror("fork");
-        free(pid);
-        exit(EXIT_FAILURE);
-    }
-    
-    /* resto de hijos */
-    for (i = 1; i < N; i++){
-        if (pid[i-1] > 0){ /* padre */ 
-            pid[i] = fork();
-            if (pid[i] < 0){
-                perror("fork");
-
-                for (j = 0; j < i; j++){
-                    /* matar a los hijos */
-                }
-
-                free(pid);
-                exit(EXIT_FAILURE);
-            }       
-        }
-    }
-    
-    int padre = 1;
     for (i = 0; i < N; i++){
-        if (pid[i] == 0){
-            padre = 0;
+        pid = fork();
+        if (pid < 0){
+            perror("fork");
+            exit(EXIT_FAILURE);
+        }
+        else if (pid){ /* padre */
+            array_pid[i] = pid;
+        }
+        else{ /* hijo */
             break;
         }
     }
-    if (padre){
+
+    if (pid){ /* padre */
+
+        sigemptyset(&(act.sa_mask));
+        act.sa_flags = 0;
+        act.sa_handler = manejador;
+
+        /* ignorar SIGALRM pero sin finalizar */
+        if (sigaction(SIGALRM, &act, NULL) < 0) {
+            perror("sigaction");
+            exit(EXIT_FAILURE);
+        }
+
+        /* ignorar SIGUSR2 pero sin finalizar */
+        if (sigaction(SIGUSR2, &act, NULL) < 0) {
+            perror("sigaction");
+            exit(EXIT_FAILURE);
+        }
+
         if (alarm(T)) {
             fprintf(stderr, "Existe una alarma previa establecida\n");
         }
 
-        sigset_t set;
+        /* suspender todas senales hasta que reciba SIGALRM */
         sigfillset(&set);
         sigdelset(&set, SIGALRM);
         sigsuspend(&set);
 
+        /* enviar SIGTERM a todos los hijos */
         for (i = 0; i < N; i++){
-            printf("aa = %d\n",i);
-            kill(pid[i], SIGTERM);
-            wait(NULL); // ???
+            if (kill(array_pid[i], SIGTERM) < 0){
+                perror("kill");
+                exit(EXIT_FAILURE);
+            }
         }
-        free(pid);
-        fprintf(stdout, "Finalizado padre");
+
+        /* no dejar hijos huerfanos antes de finalizar */
+        for (i = 0; i < N; i++) wait(NULL);
+
+        fprintf(stdout, "Finalizado padre\n");
         exit(EXIT_SUCCESS);
     }
-
-    long int suma = 0;
-    for (i = 1; i <= (int)(getpid()/10); i++) suma += i;
-    fprintf(stdout, "PID = %jd\tSuma = %ld\n",(intmax_t)getpid(), suma); 
     
-    kill(getppid(), SIGUSR2);
-
-    struct sigaction act_hijo;
-    sigfillset(&(act_hijo.sa_mask));
-    sigdelset(&(act_hijo.sa_mask), SIGTERM);
-    act_hijo.sa_flags = 0;
-    act_hijo.sa_handler = manejador_SIGTERM;
-
-    if (sigaction(SIGTERM, &act_hijo, NULL) < 0){
-        perror ("sigaction");
-        free(pid);
+    // else
+    int suma = 0;
+    for (i = 1; i <= getpid()/10; i++) suma += i;
+    fprintf(stdout, "PID = %jd\tSuma = %d\n",(intmax_t)getpid(), suma); 
+    if (kill(getppid(), SIGUSR2) < 0){
+        perror("kill");
         exit(EXIT_FAILURE);
     }
     
-    free(pid);
+    /* ignorar SIGTERM pero sin finalizar */
+    sigemptyset(&(act.sa_mask));
+    act.sa_flags = 0;
+    act.sa_handler = manejador;
+    if (sigaction(SIGTERM, &act, NULL) < 0){
+        perror ("sigaction");
+        exit(EXIT_FAILURE);
+    }
+
+    /* suspender todas senales hasta que reciba SIGTERM */
+    sigfillset(&set);
+    sigdelset(&set, SIGTERM);
+    sigsuspend(&set);
+
+    /* ha recibido SIGTERM */
+    fprintf(stdout, "Finalizado PID = %jd\n", (intmax_t)getpid());
+
     exit(EXIT_SUCCESS);
 }
+
