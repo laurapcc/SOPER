@@ -15,7 +15,21 @@ $(EXE) : % : %.o
 	@echo "# Ha cambiado $<"
 	$(CC) $(CFLAGS) -o $@ $@.o
 
-ejercicio_kill.o : ejercicio_kill.c
+ejercicio_kill.o: ejercicio_kill.c
+	@echo "#---------------------------"
+	@echo "# Generando $@ "
+	@echo "# Depende de $^"
+	@echo "# Ha cambiado $<"
+	$(CC) $(CFLAGS) -c $<
+
+ejercicio_prottemp.o : ejercicio_prottemp.c
+	@echo "#---------------------------"
+	@echo "# Generando $@ "
+	@echo "# Depende de $^"
+	@echo "# Ha cambiado $<"
+	$(CC) $(CFLAGS) -c $<
+
+ejercicio_prottemp_mejorado.o : ejercicio_prottemp_mejorado.c
 	@echo "#---------------------------"
 	@echo "# Generando $@ "
 	@echo "# Depende de $^"
@@ -24,8 +38,12 @@ ejercicio_kill.o : ejercicio_kill.c
 
 
 # de ejemplo 
-arbol:
-	@echo Ejecutando ejercicio_arbol
-	@./ejercicio_arbol
+prottemp:
+	@echo Ejecutando ejercicio_prottemp
+	@./ejercicio_prottemp 10 4
+
+prottemp_mejorado:
+	@echo Ejecutando ejercicio_prottemp_mejorado
+	@./ejercicio_prottemp_mejorado 10 4
 
 
