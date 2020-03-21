@@ -3,7 +3,7 @@
 * Autores: Jorge de Miguel y Laura de Paz
 * Grupo de prácticas: 2202
 * Fecha: 13/03/2020
-* Descripcion: 
+* Descripcion:
 ****************************************************************/
 
 #include <stdio.h>
@@ -20,7 +20,7 @@ int usr2 = 0;
  * Nombre de la funcion: manejador
  * Parametros: sig: senal a manejar
  * Descripcion: funcion que se ejecutara cuando un proceso reciba la senal sig
- * Return: 
+ * Return:
  */
 void manejador(int sig) {
     return;
@@ -31,7 +31,7 @@ void manejador(int sig) {
  * Nombre de la funcion: manejador_SIGUSR2
  * Parametros: sig: senal a manejar
  * Descripcion: funcion que se ejecutara cuando un proceso reciba la senal sig
- * Return: 
+ * Return:
  */
 void manejador_SIGUSR2(int sig) {
     usr2++;
@@ -53,7 +53,7 @@ int main(int argc, char* argv[]) {
         printf("./ejercicio_prottemp.c <N> <T>\n");
         exit(EXIT_FAILURE);
     }
-    
+
     int N = atoi(argv[1]);
     int T = atoi(argv[2]);
     pid_t array_pid[N];
@@ -121,22 +121,23 @@ int main(int argc, char* argv[]) {
         fprintf(stdout, "Se han recibido %d senales SIGUSR2\n", usr2);
         exit(EXIT_SUCCESS);
     }
-    
+
     // else
-    int suma = 0;
-    for (i = 1; i <= getpid()/10; i++) suma += i;
-    fprintf(stdout, "PID = %jd\tSuma = %d\n",(intmax_t)getpid(), suma); 
-    if (kill(getppid(), SIGUSR2) < 0){
-        perror("kill");
-        exit(EXIT_FAILURE);
-    }
-    
+
     /* ignorar SIGTERM pero sin finalizar */
     sigemptyset(&(act.sa_mask));
     act.sa_flags = 0;
     act.sa_handler = manejador;
     if (sigaction(SIGTERM, &act, NULL) < 0){
         perror ("sigaction");
+        exit(EXIT_FAILURE);
+    }
+    
+    int suma = 0;
+    for (i = 1; i <= getpid()/10; i++) suma += i;
+    fprintf(stdout, "PID = %jd\tSuma = %d\n",(intmax_t)getpid(), suma);
+    if (kill(getppid(), SIGUSR2) < 0){
+        perror("kill");
         exit(EXIT_FAILURE);
     }
 
@@ -150,4 +151,3 @@ int main(int argc, char* argv[]) {
 
     exit(EXIT_SUCCESS);
 }
-

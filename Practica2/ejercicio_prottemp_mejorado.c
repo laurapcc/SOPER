@@ -1,9 +1,9 @@
 /****************************************************************
-* Nombre: ejercicio_prottemp
+* Nombre: ejercicio_prottemp_mejorado
 * Autores: Jorge de Miguel y Laura de Paz
 * Grupo de prácticas: 2202
-* Fecha: 13/03/2020
-* Descripcion: 
+* Fecha: 17/03/2020
+* Descripcion:
 ****************************************************************/
 
 #include <stdio.h>
@@ -26,7 +26,7 @@ int fin_trabajo = 0;
  * Nombre de la funcion: manejador
  * Parametros: sig: senal a manejar
  * Descripcion: funcion que se ejecutara cuando un proceso reciba la senal sig
- * Return: 
+ * Return:
  */
 void manejador(int sig) {
     return;
@@ -36,7 +36,7 @@ void manejador(int sig) {
  * Nombre de la funcion: manejador_SIGUSR2
  * Parametros: sig: senal a manejar
  * Descripcion: funcion que se ejecutara cuando un proceso reciba la senal sig
- * Return: 
+ * Return:
  */
 void manejador_SIGUSR2(int sig) {
     FILE *f = NULL;
@@ -49,9 +49,17 @@ void manejador_SIGUSR2(int sig) {
     if (atoi(buf) == N_global){
         fin_trabajo = 1;
     }
+
     return;
 }
 
+
+/**
+ * Nombre de la funcion: crear_txt
+ * Parametros:
+ * Descripcion: crea el archivo e inicializa las dos lineas a 0
+ * Return:
+ */
 void crear_txt(){
     FILE *f = NULL;
     if ((f = fopen("data.txt", "w")) == NULL){
@@ -66,8 +74,8 @@ void crear_txt(){
 /**
  * Nombre de la funcion: trabajo_hijo
  * Parametros: suma
- * Descripcion: trabajo de lectura y escitura de un proceso hijo
- * Return: 
+ * Descripcion: trabajo de lectura y escritura de un proceso hijo
+ * Return:
  */
 void trabajo_hijo(int suma){
     FILE *f = NULL;
@@ -98,7 +106,7 @@ void trabajo_hijo(int suma){
  *             argv: array de strings con los paramtros
  * Descripcion: funcion principal del programa
  * Return: EXIT_FAILURE si algo falla durante la ejecucion
- * 		   EXIT_SUCCES si se ejecuta correctamente
+ * 		   EXIT_SUCCESS si se ejecuta correctamente
  */
 int main(int argc, char* argv[]) {
     if (argc != 3){
@@ -106,7 +114,7 @@ int main(int argc, char* argv[]) {
         printf("./ejercicio_prottemp.c <N> <T>\n");
         exit(EXIT_FAILURE);
     }
-    
+
     int N = atoi(argv[1]);
     N_global = N;
     int T = atoi(argv[2]);
@@ -119,14 +127,16 @@ int main(int argc, char* argv[]) {
 
     sem_t *sem1 = NULL;
     if ((sem1 = sem_open(SEM1, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, 0)) == SEM_FAILED) {
-		perror("sem_open");
-		exit(EXIT_FAILURE);
-	}
+  		perror("sem_open");
+  		exit(EXIT_FAILURE);
+	  }
 
     for (i = 0; i < N; i++){
         pid = fork();
         if (pid < 0){
             perror("fork");
+            sem_unlink(SEM1);
+            sem_close(sem1);
             exit(EXIT_FAILURE);
         }
         else if (pid){ /* padre */
@@ -137,14 +147,16 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    if (pid){ /* padre */
+    sem_unlink(SEM1);
 
+    if (pid){ /* padre */
         /* ignorar SIGALRM pero sin finalizar */
         sigemptyset(&(act.sa_mask));
         act.sa_flags = 0;
         act.sa_handler = manejador;
         if (sigaction(SIGALRM, &act, NULL) < 0) {
             perror("sigaction");
+            sem_close(sem1);
             exit(EXIT_FAILURE);
         }
 
@@ -154,6 +166,7 @@ int main(int argc, char* argv[]) {
         act_usr2.sa_handler = manejador_SIGUSR2;
         if (sigaction(SIGUSR2, &act_usr2, NULL) < 0) {
             perror("sigaction");
+            sem_close(sem1);
             exit(EXIT_FAILURE);
         }
 
@@ -185,13 +198,24 @@ int main(int argc, char* argv[]) {
 
         fprintf(stdout, "Finalizado padre\n");
         fprintf(stdout, "Se han recibido %d senales SIGUSR2\n", usr2);
+        sem_close(sem1);
         exit(EXIT_SUCCESS);
     }
-    
+
     // else
+    /* ignorar SIGTERM pero sin finalizar */
+    sigemptyset(&(act.sa_mask));
+    act.sa_flags = 0;
+    act.sa_handler = manejador;
+    if (sigaction(SIGTERM, &act, NULL) < 0){
+        perror ("sigaction");
+        sem_close(sem1);
+        exit(EXIT_FAILURE);
+    }
+
     int suma = 0;
     for (i = 1; i <= getpid()/10; i++) suma += i;
-    fprintf(stdout, "PID = %jd\tSuma = %d\n",(intmax_t)getpid(), suma); 
+    fprintf(stdout, "PID = %jd\tSuma = %d\n",(intmax_t)getpid(), suma);
 
     /* espera a poder leer/escribir y entonces realiza tu trabajo */
     sem_wait(sem1);
@@ -201,15 +225,7 @@ int main(int argc, char* argv[]) {
     /* el proceso ha finalizado su trabajo */
     if (kill(getppid(), SIGUSR2) < 0){
         perror("kill");
-        exit(EXIT_FAILURE);
-    }
-    
-    /* ignorar SIGTERM pero sin finalizar */
-    sigemptyset(&(act.sa_mask));
-    act.sa_flags = 0;
-    act.sa_handler = manejador;
-    if (sigaction(SIGTERM, &act, NULL) < 0){
-        perror ("sigaction");
+        sem_close(sem1);
         exit(EXIT_FAILURE);
     }
 
@@ -220,7 +236,6 @@ int main(int argc, char* argv[]) {
 
     /* ha recibido SIGTERM */
     fprintf(stdout, "Finalizado PID = %jd\n", (intmax_t)getpid());
-
+    sem_close(sem1);
     exit(EXIT_SUCCESS);
 }
-
