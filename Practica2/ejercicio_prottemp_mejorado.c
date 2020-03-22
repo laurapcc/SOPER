@@ -18,87 +18,67 @@
 #include <stdint.h>
 
 #define SEM1 "/sem1"
+#define SEM2 "/sem2"
 int usr2 = 0;
 int N_global;
 int fin_trabajo = 0;
 
 /**
- * Nombre de la funcion: manejador
+ * Nombre de la funcion: manejador_SIGTERM
  * Parametros: sig: senal a manejar
- * Descripcion: funcion que se ejecutara cuando un proceso reciba la senal sig
+ * Descripcion: ignora la funcion SIGTERM pero no termina el programa
  * Return:
  */
-void manejador(int sig) {
-    return;
-}
+void manejador_SIGTERM(int sig);
+
 
 /**
  * Nombre de la funcion: manejador_SIGUSR2
  * Parametros: sig: senal a manejar
- * Descripcion: funcion que se ejecutara cuando un proceso reciba la senal sig
+ * Descripcion: cuando recibe la senal SIGUSR2 comprueba si todos los procesos hijos
+ *              han terminado ya su trabajo
  * Return:
  */
-void manejador_SIGUSR2(int sig) {
-    FILE *f = NULL;
-    char buf[100];
-    if ((f = fopen("data.txt", "r")) == NULL){
-        perror("fopen");
-        exit(EXIT_FAILURE);
-    }
-    fgets(buf, 100, f);
-    if (atoi(buf) == N_global){
-        fin_trabajo = 1;
-    }
+void manejador_SIGUSR2(int sig);
 
-    return;
-}
+
+/**
+ * Nombre de la funcion: manejador_SIGALRM
+ * Parametros: sig: senal a manejar
+ * Descripcion: si recibe la senal SIGALARM antes de que los hijos hayan terminado
+ *              su trabajo, entonces se ejecurara esta funcion
+ * Return:
+ */
+void manejador_SIGALRM(int sig);
 
 
 /**
  * Nombre de la funcion: crear_txt
  * Parametros:
- * Descripcion: crea el archivo e inicializa las dos lineas a 0
+ * Descripcion: crea el archivo data.txt e inicializa las dos lineas a 0
  * Return:
  */
-void crear_txt(){
-    FILE *f = NULL;
-    if ((f = fopen("data.txt", "w")) == NULL){
-        perror("fopen");
-        exit(EXIT_FAILURE);
-    }
-    fprintf(f, "0\n");
-    fprintf(f, "0\n");
-    fclose(f);
-}
+void crear_txt();
+
 
 /**
  * Nombre de la funcion: trabajo_hijo
  * Parametros: suma
- * Descripcion: trabajo de lectura y escritura de un proceso hijo
+ * Descripcion: trabajo de lectura y escritura en data.txt de un proceso hijo
  * Return:
  */
-void trabajo_hijo(int suma){
-    FILE *f = NULL;
-    char buf[100];
-    int proc_done;
-    int sum_total;
-    if ((f = fopen("data.txt", "r")) == NULL){
-        perror("fopen");
-        exit(EXIT_FAILURE);
-    }
-    fgets(buf, 100, f);
-    proc_done = atoi(buf);
-    fgets(buf, 100, f);
-    sum_total = atoi(buf);
-    fclose(f);
-    if ((f = fopen("data.txt", "w")) == NULL){
-        perror("fopen");
-        exit(EXIT_FAILURE);
-    }
-    fprintf(f, "%d\n", proc_done+1);
-    fprintf(f, "%d\n", sum_total + suma);
-    fclose(f);
-}
+void trabajo_hijo(int suma);
+
+
+/**
+ * Nombre de la funcion: fin_antes_tiempo
+ * Parametros: suma
+ * Descripcion: funcion que indica que han acabado todos los procesos hijos antes
+ *              de que el padre haya recibido la senal SIGALRM
+ * Return:
+ */
+void fin_antes_tiempo();
+
 
 /**
  * Nombre de la funcion: main
@@ -129,7 +109,7 @@ int main(int argc, char* argv[]) {
     if ((sem1 = sem_open(SEM1, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, 0)) == SEM_FAILED) {
   		perror("sem_open");
   		exit(EXIT_FAILURE);
-	  }
+	}
 
     for (i = 0; i < N; i++){
         pid = fork();
@@ -153,7 +133,7 @@ int main(int argc, char* argv[]) {
         /* ignorar SIGALRM pero sin finalizar */
         sigemptyset(&(act.sa_mask));
         act.sa_flags = 0;
-        act.sa_handler = manejador;
+        act.sa_handler = manejador_SIGALRM;
         if (sigaction(SIGALRM, &act, NULL) < 0) {
             perror("sigaction");
             sem_close(sem1);
@@ -181,9 +161,11 @@ int main(int argc, char* argv[]) {
         /* suspender todas senales hasta que reciba SIGALRM */
         sigfillset(&set);
         sigdelset(&set, SIGALRM);
+        sigdelset(&set, SIGUSR2);
         sigsuspend(&set);
 
         /* enviar SIGTERM a todos los hijos */
+        // PROBLEMA: llega aqui antes de tiempo y por eso no da tiempo a ejecutar todos los hijos
         if (fin_trabajo){
             for (i = 0; i < N; i++){
                 if (kill(array_pid[i], SIGTERM) < 0){
@@ -196,8 +178,7 @@ int main(int argc, char* argv[]) {
         /* no dejar hijos huerfanos antes de finalizar */
         for (i = 0; i < N; i++) wait(NULL);
 
-        fprintf(stdout, "Finalizado padre\n");
-        fprintf(stdout, "Se han recibido %d senales SIGUSR2\n", usr2);
+        fin_antes_tiempo();
         sem_close(sem1);
         exit(EXIT_SUCCESS);
     }
@@ -206,7 +187,7 @@ int main(int argc, char* argv[]) {
     /* ignorar SIGTERM pero sin finalizar */
     sigemptyset(&(act.sa_mask));
     act.sa_flags = 0;
-    act.sa_handler = manejador;
+    act.sa_handler = manejador_SIGTERM;
     if (sigaction(SIGTERM, &act, NULL) < 0){
         perror ("sigaction");
         sem_close(sem1);
@@ -238,4 +219,91 @@ int main(int argc, char* argv[]) {
     fprintf(stdout, "Finalizado PID = %jd\n", (intmax_t)getpid());
     sem_close(sem1);
     exit(EXIT_SUCCESS);
+}
+
+
+/*****************************************************/
+/*************** FUNCIONES MANEJADORAS ***************/
+/*****************************************************/
+
+void manejador_SIGTERM(int sig) {
+    return;
+}
+
+
+void manejador_SIGUSR2(int sig) {
+    FILE *f = NULL;
+    char buf[100];
+    usr2++;
+    if ((f = fopen("data.txt", "r")) == NULL){
+        perror("fopen");
+        exit(EXIT_FAILURE);
+    }
+    fgets(buf, 100, f);
+    if (atoi(buf) == N_global){
+        fin_trabajo = 1;
+    }
+
+    printf("fin_trabajo = %d\n", fin_trabajo);
+
+    return;
+}
+
+
+void manejador_SIGALRM(int sig) {
+    fprintf(stdout, "Falta trabajo\n");
+    return;
+}
+
+
+/*****************************************************/
+/****************** OTRAS FUNCIONES ******************/
+/*****************************************************/
+
+void crear_txt(){
+    FILE *f = NULL;
+    if ((f = fopen("data.txt", "w")) == NULL){
+        perror("fopen");
+        exit(EXIT_FAILURE);
+    }
+    fprintf(f, "0\n");
+    fprintf(f, "0\n");
+    fclose(f);
+}
+
+
+void trabajo_hijo(int suma){
+    FILE *f = NULL;
+    char buf[100];
+    int proc_done;
+    int sum_total;
+    if ((f = fopen("data.txt", "r")) == NULL){
+        perror("fopen");
+        exit(EXIT_FAILURE);
+    }
+    fgets(buf, 100, f);
+    proc_done = atoi(buf);
+    fgets(buf, 100, f);
+    sum_total = atoi(buf);
+    fclose(f);
+    if ((f = fopen("data.txt", "w")) == NULL){
+        perror("fopen");
+        exit(EXIT_FAILURE);
+    }
+    fprintf(f, "%d\n", proc_done+1);
+    fprintf(f, "%d\n", sum_total + suma);
+    fclose(f);
+}
+
+
+void fin_antes_tiempo(){
+    FILE *f = NULL;
+    char buf[100];
+    if ((f = fopen("data.txt", "r")) == NULL){
+        perror("fopen");
+        exit(EXIT_FAILURE);
+    }
+    fgets(buf, 100, f);
+    fgets(buf, 100, f);
+    fprintf(stdout, "Han acabado todos, resultado: %s\n", buf);
 }
