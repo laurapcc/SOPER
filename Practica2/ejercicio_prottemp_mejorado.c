@@ -67,7 +67,7 @@ void crear_txt();
  * Descripcion: trabajo de lectura y escritura en data.txt de un proceso hijo
  * Return:
  */
-void trabajo_hijo(int suma);
+void trabajo_hijo(long suma);
 
 
 /**
@@ -166,6 +166,7 @@ int main(int argc, char* argv[]) {
 
         /* enviar SIGTERM a todos los hijos */
         // PROBLEMA: llega aqui antes de tiempo y por eso no da tiempo a ejecutar todos los hijos
+        while(!fin_trabajo);
         if (fin_trabajo){
             for (i = 0; i < N; i++){
                 if (kill(array_pid[i], SIGTERM) < 0){
@@ -194,9 +195,9 @@ int main(int argc, char* argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    int suma = 0;
+    long suma = 0;
     for (i = 1; i <= getpid()/10; i++) suma += i;
-    fprintf(stdout, "PID = %jd\tSuma = %d\n",(intmax_t)getpid(), suma);
+    // fprintf(stdout, "PID = %jd\tSuma = %d\n",(intmax_t)getpid(), suma);
 
     /* espera a poder leer/escribir y entonces realiza tu trabajo */
     sem_wait(sem1);
@@ -216,7 +217,7 @@ int main(int argc, char* argv[]) {
     sigsuspend(&set);
 
     /* ha recibido SIGTERM */
-    fprintf(stdout, "Finalizado PID = %jd\n", (intmax_t)getpid());
+    //fprintf(stdout, "Finalizado PID = %jd\n", (intmax_t)getpid());
     sem_close(sem1);
     exit(EXIT_SUCCESS);
 }
@@ -243,16 +244,13 @@ void manejador_SIGUSR2(int sig) {
     if (atoi(buf) == N_global){
         fin_trabajo = 1;
     }
-
-    printf("fin_trabajo = %d\n", fin_trabajo);
-
     return;
 }
 
 
 void manejador_SIGALRM(int sig) {
     fprintf(stdout, "Falta trabajo\n");
-    return;
+    exit(EXIT_FAILURE);
 }
 
 
@@ -272,7 +270,7 @@ void crear_txt(){
 }
 
 
-void trabajo_hijo(int suma){
+void trabajo_hijo(long suma){
     FILE *f = NULL;
     char buf[100];
     int proc_done;
@@ -291,7 +289,7 @@ void trabajo_hijo(int suma){
         exit(EXIT_FAILURE);
     }
     fprintf(f, "%d\n", proc_done+1);
-    fprintf(f, "%d\n", sum_total + suma);
+    fprintf(f, "%ld\n", sum_total + suma);
     fclose(f);
 }
 
