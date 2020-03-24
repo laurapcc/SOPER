@@ -17,7 +17,7 @@
 #include <unistd.h>
 #include <stdint.h>
 
-#define N_READ 1
+#define N_READ 10
 #define SECS 0
 #define SEM_LECT "/sem_lect"
 #define SEM_ESCR "/sem_escr"
@@ -61,15 +61,14 @@ int main(int argc, char* argv[]){
   sem_t *semAux=NULL;
   pid_t array_pid[N_READ];
   pid_t pid;
-  sigset_t set;
   struct sigaction act;
   struct sigaction act2;
 
-  if ((semLectura = sem_open(SEM_LECT, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, 0)) == SEM_FAILED) {
+  if ((semLectura = sem_open(SEM_LECT, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, 1)) == SEM_FAILED) {
 		perror("sem_open");
 		exit(EXIT_FAILURE);
 	};
-  if ((semEscritura = sem_open(SEM_ESCR, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, 0)) == SEM_FAILED) {
+  if ((semEscritura = sem_open(SEM_ESCR, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, 1)) == SEM_FAILED) {
 		perror("sem_open");
 		exit(EXIT_FAILURE);
 	};
@@ -111,6 +110,7 @@ int main(int argc, char* argv[]){
       sem_wait(semEscritura);
       escritura();
       sem_post(semEscritura);
+      sleep(SECS);
     }
 
     /* enviar SIGTERM a todos los hijos */
@@ -157,6 +157,7 @@ int main(int argc, char* argv[]){
       if (valSem==0)
         sem_post(semEscritura);
       sem_post(semLectura);
+      sleep(SECS);
     }
 
     sem_close(semEscritura);
