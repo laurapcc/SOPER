@@ -165,7 +165,6 @@ int main(int argc, char* argv[]) {
         sigsuspend(&set);
 
         /* enviar SIGTERM a todos los hijos */
-        // PROBLEMA: llega aqui antes de tiempo y por eso no da tiempo a ejecutar todos los hijos
         while(!fin_trabajo);
         if (fin_trabajo){
             for (i = 0; i < N; i++){
@@ -197,7 +196,6 @@ int main(int argc, char* argv[]) {
 
     long suma = 0;
     for (i = 1; i <= getpid()/10; i++) suma += i;
-    // fprintf(stdout, "PID = %jd\tSuma = %d\n",(intmax_t)getpid(), suma);
 
     /* espera a poder leer/escribir y entonces realiza tu trabajo */
     sem_wait(sem1);
@@ -217,7 +215,6 @@ int main(int argc, char* argv[]) {
     sigsuspend(&set);
 
     /* ha recibido SIGTERM */
-    //fprintf(stdout, "Finalizado PID = %jd\n", (intmax_t)getpid());
     sem_close(sem1);
     exit(EXIT_SUCCESS);
 }

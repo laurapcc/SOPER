@@ -17,7 +17,7 @@
 #include <unistd.h>
 #include <stdint.h>
 
-#define N_READ 10
+#define N_READ 5
 #define SECS 0
 #define SEM_LECT "/sem_lect"
 #define SEM_ESCR "/sem_escr"
@@ -26,6 +26,12 @@
 int sigintRecibida=0;
 int sigtermRecibida=0;
 
+/**
+ * Nombre de la funcion: lectura
+ * Parametros:
+ * Descripcion: realiza la función de un lector
+ * Return:
+ */
 void lectura(){
   fprintf(stdout, "R-INI %ld\n", (long)getpid());
   fflush(stdout);
@@ -34,7 +40,13 @@ void lectura(){
   fflush(stdout);
 }
 
-void escritura(){
+/**
+ * Nombre de la funcion: escritura
+ * Parametros:
+ * Descripcion: realiza la función de un escritor
+ * Return:
+ */
+ void escritura(){
   fprintf(stdout, "W-INI %ld\n", (long)getpid());
   fflush(stdout);
   sleep(1);
@@ -64,6 +76,7 @@ int main(int argc, char* argv[]){
   struct sigaction act;
   struct sigaction act2;
 
+  /* Creamos los 3 semaforos necesarios */
   if ((semLectura = sem_open(SEM_LECT, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, 1)) == SEM_FAILED) {
 		perror("sem_open");
 		exit(EXIT_FAILURE);
@@ -77,6 +90,7 @@ int main(int argc, char* argv[]){
 		exit(EXIT_FAILURE);
 	};
 
+  /* Creamos N_READ procesos hijos que seran los lectores */
   for (int i = 0; i < N_READ; i++){
     pid = fork();
     if (pid < 0){
@@ -91,6 +105,10 @@ int main(int argc, char* argv[]){
     }
   }
 
+  /*
+   * Dado que todos los procesos ya tienen los semáforos asignados podemos realizar
+   * ya la llamada a sem_unlink
+   */
   sem_unlink(SEM_ESCR);
   sem_unlink(SEM_LECT);
   sem_unlink(SEM_AUX);
@@ -106,6 +124,7 @@ int main(int argc, char* argv[]){
         exit(EXIT_FAILURE);
     }
 
+    /* El escritor escribe hasta que le llega la señal SIGINT */
     while (!sigintRecibida){
       sem_wait(semEscritura);
       escritura();
@@ -129,7 +148,7 @@ int main(int argc, char* argv[]){
     sem_close(semAux);
     exit(EXIT_SUCCESS);
   }
-  else{
+  else {
     int valSem;
     sigemptyset(&(act2.sa_mask));
     act2.sa_flags = 0;
@@ -141,6 +160,7 @@ int main(int argc, char* argv[]){
         exit(EXIT_FAILURE);
     }
 
+    /* Los lectores leen hasta que les llega la senhal SIGTERM */
     while (!sigtermRecibida){
       sem_wait(semLectura);
       sem_post(semAux);
