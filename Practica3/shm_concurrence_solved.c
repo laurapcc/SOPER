@@ -43,11 +43,15 @@ typedef struct {
 } ClientLog;
 
 ClientLog *shm_struct;
+int manej = 0;
 
 void manejador (int sig) {
+	sem_wait(&(shm_struct->mutex));
 	if (sig == SIGUSR1) {
 		printf ("Log %ld: Pid %d: %s\n",shm_struct->logid, shm_struct->processid, shm_struct->logtext);
 	}
+	manej++;
+	sem_post(&(shm_struct->mutex));
 }
 
 int main(int argc, char *argv[]) {
@@ -125,10 +129,7 @@ int main(int argc, char *argv[]) {
             return ret;
         }
 
-        /* suspender proceso hasta que reciba SIGUSR1 */
-        sigfillset(&set);
-        sigdelset(&set, SIGUSR1);
-        sigsuspend(&set);
+        while(manej!=m*n);
 
 		/* espera a que acaben todo los hijos */
 		for (i = 0; i < n; i++)
@@ -136,7 +137,7 @@ int main(int argc, char *argv[]) {
 
 		munmap(shm_struct, sizeof(*shm_struct));
     	shm_unlink(SHM_NAME);
-
+		sem_destroy(&(shm_struct->mutex));
 		return EXIT_SUCCESS;
 	}
 	//else
@@ -160,10 +161,9 @@ int main(int argc, char *argv[]) {
 			/* liberar algo de shm? en el ejmplo de reader no lo hace */
 			return ret;
 		}
-
-		/* Unmap the shared memory */
-		munmap(shm_struct, sizeof(*shm_struct));
 	}
+	/* Unmap the shared memory */
+	munmap(shm_struct, sizeof(*shm_struct));
 
 
 	return EXIT_SUCCESS;
