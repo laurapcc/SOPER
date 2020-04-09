@@ -43,9 +43,11 @@ typedef struct {
 ClientLog *shm_struct;
 
 void manejador (int sig) {
+	printf("   padre en manejador!!!\n");
 	if (sig == SIGUSR1) {
 		printf ("Log %ld: Pid %d: %s\n",shm_struct->logid, shm_struct->processid, shm_struct->logtext);
 	}
+	printf("   padre sale de manejador...\n");
 }
 
 int main(int argc, char *argv[]) {
@@ -64,37 +66,6 @@ int main(int argc, char *argv[]) {
 	n = atoi(argv[1]);
 	m = atoi(argv[2]);
 
-	/* crear memoria compartida */
-	int fd_shm = shm_open(SHM_NAME,
-				O_RDWR | O_CREAT | O_EXCL, 
-				S_IRUSR | S_IWUSR);
-
-	if (fd_shm == -1) {
-		fprintf(stderr, "Error creating the shared memory segment\n");
-		return EXIT_FAILURE;
-	}
-
-	/* Truncar el tamano de la memoria compartida */
-	if (ftruncate(fd_shm, sizeof(*shm_struct)) == -1) {
-		fprintf(stderr, "Error resizing the shared memory segment\n");
-		shm_unlink(SHM_NAME);
-		return EXIT_FAILURE;
-	}
-
-	/* Mapear el segmento de memoria */
-	shm_struct = mmap(NULL, sizeof(*shm_struct), PROT_READ | PROT_WRITE,
-								MAP_SHARED, fd_shm, 0);
-	close(fd_shm);
-
-	if (shm_struct == MAP_FAILED) {
-		fprintf(stderr, "Error mapping the shared memory segment\n");
-		shm_unlink(SHM_NAME);
-		return ret;
-	}
-
-	/* Inicializar logid a -1 */
-	shm_struct->logid = -1;
-
 	/* crear n hijos */
 	for (i = 0; i < n; i++){
         pid = fork();
@@ -111,6 +82,38 @@ int main(int argc, char *argv[]) {
     }
 
 	if (pid){ /* padre */
+		printf("padre\n");
+
+		/* crear memoria compartida */
+		int fd_shm = shm_open(SHM_NAME,
+        			O_RDWR | O_CREAT | O_EXCL, 
+        			S_IRUSR | S_IWUSR);
+
+		if (fd_shm == -1) {
+			fprintf(stderr, "Error creating the shared memory segment\n");
+			return EXIT_FAILURE;
+    	}
+
+		/* Truncar el tamano de la memoria compartida */
+		if (ftruncate(fd_shm, sizeof(ClientLog)) == -1) {
+			fprintf(stderr, "Error resizing the shared memory segment\n");
+			shm_unlink(SHM_NAME);
+			return EXIT_FAILURE;
+		}
+
+		/* Mapear el segmento de memoria */
+		ClientLog *my_struct = mmap(NULL, sizeof(ClientLog), PROT_READ | PROT_WRITE,
+									MAP_SHARED, fd_shm, 0);
+		close(fd_shm);
+
+		if (my_struct == MAP_FAILED) {
+			fprintf(stderr, "Error mapping the shared memory segment\n");
+			shm_unlink(SHM_NAME);
+			return ret;
+		}
+
+		/* Inicializar logid a -1 */ /* NO SE ESTO ESTA BIEN AQUI */
+		my_struct->logid = -1;
 
 		/* manejar SIGUSR1 */
         sigemptyset(&(act.sa_mask));
@@ -131,16 +134,35 @@ int main(int argc, char *argv[]) {
 		for (i = 0; i < n; i++)
 			wait(NULL);
 
-		munmap(shm_struct, sizeof(*shm_struct));
+		munmap(my_struct, sizeof(ClientLog));
     	shm_unlink(SHM_NAME);
-
+		
 		return EXIT_SUCCESS;
 	}
 	//else
 
+	printf("hijo\n");
 
 	for (i = 0; i < m; i++){
 		usleep((rand()%801 + 100) * 1000); /* random entre 100 y 900 ms */
+
+		/* abrir la memoria compartida */
+		int fd_shm = shm_open(SHM_NAME, O_RDWR, 0); 
+
+		if (fd_shm == -1) {
+			fprintf(stderr, "Error opening the shared memory segment (pid = %jd)\n", (intmax_t)getpid());
+			perror("open memory");
+			return EXIT_FAILURE;
+		}
+
+		/* Mapear el segmento de memoria */
+		ClientLog *my_struct = mmap(NULL, sizeof(ClientLog), PROT_WRITE, MAP_SHARED, fd_shm, 0);
+		close(fd_shm);
+
+		if (my_struct == MAP_FAILED) {
+			fprintf(stderr, "Error mapping the shared memory segment\n");
+			return EXIT_FAILURE;
+		}
 
 		/*
 		Rellenará la información de la estructura ClientLog para generar una
@@ -151,11 +173,13 @@ int main(int argc, char *argv[]) {
 
 
 		/* Escribir en la estructura compartida */
-		shm_struct->processid = getpid();
-		shm_struct->logid++;
+		printf("A escibir (pid = %jd)\n", (intmax_t)getpid());
+		my_struct->processid = getpid();
+		my_struct->logid++;
 		char buf[MAX_MSG]; 
 		getMilClock(buf);
-		memcpy(shm_struct->logtext, buf, MAX_MSG);
+		memcpy(my_struct->logtext, buf, MAX_MSG);
+		printf("Termina escibir (pid = %jd)\n", (intmax_t)getpid());
 
 
 		/* enviar senal SIGUSR1 a padre */
@@ -166,8 +190,9 @@ int main(int argc, char *argv[]) {
 		}
 
 		/* Unmap the shared memory */
-		munmap(shm_struct, sizeof(*shm_struct));
+		munmap(my_struct, sizeof(ClientLog));
 	}
+	printf("hijo termina guay\n");
 
 
 	return EXIT_SUCCESS;
