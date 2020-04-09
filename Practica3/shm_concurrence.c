@@ -41,11 +41,13 @@ typedef struct {
 } ClientLog;
 
 ClientLog *shm_struct;
+int manej = 0;
 
 void manejador (int sig) {
 	if (sig == SIGUSR1) {
 		printf ("Log %ld: Pid %d: %s\n",shm_struct->logid, shm_struct->processid, shm_struct->logtext);
-	}
+		manej++;
+	}	
 }
 
 int main(int argc, char *argv[]) {
@@ -122,10 +124,7 @@ int main(int argc, char *argv[]) {
             return ret;
         }
 
-        /* suspender proceso hasta que reciba SIGUSR1 */
-        sigfillset(&set);
-        sigdelset(&set, SIGUSR1);
-        sigsuspend(&set);
+		while(manej != m*n);
 
 		/* espera a que acaben todo los hijos */
 		for (i = 0; i < n; i++)
@@ -142,14 +141,6 @@ int main(int argc, char *argv[]) {
 	for (i = 0; i < m; i++){
 		usleep((rand()%801 + 100) * 1000); /* random entre 100 y 900 ms */
 
-		/*
-		Rellenará la información de la estructura ClientLog para generar una
-		nueva lı́nea de log, de manera que processid sea igual al PID del
-		proceso, se incremente el campo logid (clinealogid = clinealogid + 1),
-		y logtext contenga el mensaje "Soy el proceso <PID> a las HH:MM:SS:mmm"
-		*/
-
-
 		/* Escribir en la estructura compartida */
 		shm_struct->processid = getpid();
 		shm_struct->logid++;
@@ -161,14 +152,13 @@ int main(int argc, char *argv[]) {
 		/* enviar senal SIGUSR1 a padre */
 		if (kill(getppid(), SIGUSR1) < 0){
 			fprintf(stderr, "Error en proceso con pid = %jd al enviar SIGUSR1\n", (intmax_t)getpid());
-			/* liberar algo de shm? en el ejmplo de reader no lo hace */
 			return ret;
 		}
 
-		/* Unmap the shared memory */
-		munmap(shm_struct, sizeof(*shm_struct));
 	}
 
+	/* Unmap the shared memory */
+	munmap(shm_struct, sizeof(*shm_struct));
 
 	return EXIT_SUCCESS;
 }
