@@ -43,15 +43,11 @@ typedef struct {
 } ClientLog;
 
 ClientLog *shm_struct;
-int manej = 0;
 
 void manejador (int sig) {
-	sem_wait(&(shm_struct->mutex));
 	if (sig == SIGUSR1) {
 		printf ("Log %ld: Pid %d: %s\n",shm_struct->logid, shm_struct->processid, shm_struct->logtext);
 	}
-	manej++;
-	sem_post(&(shm_struct->mutex));
 }
 
 int main(int argc, char *argv[]) {
@@ -100,7 +96,25 @@ int main(int argc, char *argv[]) {
 
 	/* Inicializar la estructura: logid y el semaforo */
 	shm_struct->logid = -1;
-	sem_init(&(shm_struct->mutex), 1, 1); // 1: para poder compartir entre procesos y 1: valor inicial
+	if (sem_init(&(shm_struct->mutex), 1, 0) == -1){ // 1: para poder compartir entre procesos y 1: valor inicial
+		fprintf(stderr, "Error creating semaphore\n");
+		shm_unlink(SHM_NAME);
+		return ret;
+	}
+
+	/* manejar SIGUSR1 */
+	sigemptyset(&(act.sa_mask));
+	act.sa_flags = 0;
+	act.sa_handler = manejador;
+	if (sigaction(SIGUSR1, &act, NULL) < 0) {
+		fprintf(stderr, "Error in sigaction\n");
+		shm_unlink(SHM_NAME);
+		return ret;
+	}
+
+	sigfillset(&set);
+	sigdelset(&set, SIGUSR1);
+	sigdelset(&set, SIGINT);
 
 	/* crear n hijos */
 	for (i = 0; i < n; i++){
@@ -109,27 +123,15 @@ int main(int argc, char *argv[]) {
             perror("fork");
             exit(EXIT_FAILURE);
         }
-        else if (pid){ /* padre */
-            array_pid[i] = pid;
-        }
-        else{ /* hijo */
+        else if (pid == 0) /* hijo */
             break;
-        }
     }
 
 	if (pid){ /* padre */
-
-		/* manejar SIGUSR1 */
-        sigemptyset(&(act.sa_mask));
-        act.sa_flags = 0;
-        act.sa_handler = manejador;
-        if (sigaction(SIGUSR1, &act, NULL) < 0) {
-            fprintf(stderr, "Error in sigaction\n");
-			shm_unlink(SHM_NAME);
-            return ret;
-        }
-
-        while(manej!=m*n);
+		sem_post(&(shm_struct->mutex));
+		do{
+			sigsuspend(&set);
+		}while(shm_struct->logid < m*n - 1);
 
 		/* espera a que acaben todo los hijos */
 		for (i = 0; i < n; i++)
@@ -140,30 +142,31 @@ int main(int argc, char *argv[]) {
 		sem_destroy(&(shm_struct->mutex));
 		return EXIT_SUCCESS;
 	}
-	//else
 
+	else{
+		for (i = 0; i < m; i++){
+			usleep((rand()%801 + 100) * 1000); /* random entre 100 y 900 ms */
 
-	for (i = 0; i < m; i++){
-		usleep((rand()%801 + 100) * 1000); /* random entre 100 y 900 ms */
+			/* Escribir en la estructura compartida */
+			sem_wait(&(shm_struct->mutex));
+			shm_struct->processid = getpid();
+			shm_struct->logid++;
+			char buf[MAX_MSG]; 
+			getMilClock(buf);
+			memcpy(shm_struct->logtext, buf, MAX_MSG);
+			sem_post(&(shm_struct->mutex));
 
-		/* Escribir en la estructura compartida */
-		sem_wait(&(shm_struct->mutex));
-		shm_struct->processid = getpid();
-		shm_struct->logid++;
-		char buf[MAX_MSG]; 
-		getMilClock(buf);
-		memcpy(shm_struct->logtext, buf, MAX_MSG);
-		sem_post(&(shm_struct->mutex));
-
-		/* enviar senal SIGUSR1 a padre */
-		if (kill(getppid(), SIGUSR1) < 0){
-			fprintf(stderr, "Error en proceso con pid = %jd al enviar SIGUSR1\n", (intmax_t)getpid());
-			/* liberar algo de shm? en el ejmplo de reader no lo hace */
-			return ret;
+			/* enviar senal SIGUSR1 a padre */
+			if (kill(getppid(), SIGUSR1) < 0){
+				fprintf(stderr, "Error en proceso con pid = %jd al enviar SIGUSR1\n", (intmax_t)getpid());
+				return ret;
+			}
 		}
+		/* Unmap the shared memory */
+		munmap(shm_struct, sizeof(*shm_struct));
+
 	}
-	/* Unmap the shared memory */
-	munmap(shm_struct, sizeof(*shm_struct));
+
 
 
 	return EXIT_SUCCESS;
