@@ -48,6 +48,9 @@ int main(void) {
     while (aux != -1){
         sem_wait(&(e->full));
         sem_wait(&(e->mutex));
+	/* AQUI DA EL PUTO CORE DE LOS COJONES */
+	/* Creo que es por donde inicializo la cola, pero
+	   no se donde inicializarla sino (esta en el producer)*/
         aux = extraer(e->cola);
         printf("%d\n", aux);
         fflush(stdout);
