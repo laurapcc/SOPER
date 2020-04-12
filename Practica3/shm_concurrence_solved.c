@@ -56,6 +56,7 @@ int main(int argc, char *argv[]) {
 	pid_t pid;
 	pid_t array_pid[n];
 	struct sigaction act;
+	sigset_t block;
     sigset_t set;
 
 	if (argc < 3) {
@@ -112,9 +113,20 @@ int main(int argc, char *argv[]) {
 		return ret;
 	}
 
+	/* configuracion de sigsupend */
 	sigfillset(&set);
 	sigdelset(&set, SIGUSR1);
 	sigdelset(&set, SIGINT);
+
+	/* bloquear SIGUSR1 para que no llegue antes de que se suspenda */
+	sigemptyset(&block);
+    sigaddset(&block, SIGUSR1);
+    if (sigprocmask(SIG_BLOCK, &block, NULL) < 0) {
+        fprintf(stderr, "Error in sigprocmask\n");
+		shm_unlink(SHM_NAME);
+        return ret;
+    }
+
 
 	/* crear n hijos */
 	for (i = 0; i < n; i++){
@@ -128,9 +140,10 @@ int main(int argc, char *argv[]) {
     }
 
 	if (pid){ /* padre */
+		sem_post(&(shm_struct->mutex));
 		do{
-			sem_post(&(shm_struct->mutex));
 			sigsuspend(&set);
+			sem_post(&(shm_struct->mutex));
 		}while(shm_struct->logid < m*n - 1);
 
 		/* espera a que acaben todo los hijos */
