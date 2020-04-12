@@ -128,8 +128,8 @@ int main(int argc, char *argv[]) {
     }
 
 	if (pid){ /* padre */
-		sem_post(&(shm_struct->mutex));
 		do{
+			sem_post(&(shm_struct->mutex));
 			sigsuspend(&set);
 		}while(shm_struct->logid < m*n - 1);
 
@@ -154,7 +154,7 @@ int main(int argc, char *argv[]) {
 			char buf[MAX_MSG]; 
 			getMilClock(buf);
 			memcpy(shm_struct->logtext, buf, MAX_MSG);
-			sem_post(&(shm_struct->mutex));
+			//sem_post(&(shm_struct->mutex));
 
 			/* enviar senal SIGUSR1 a padre */
 			if (kill(getppid(), SIGUSR1) < 0){
