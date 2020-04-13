@@ -1,6 +1,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <math.h>
+#include <semaphore.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -41,21 +42,19 @@ typedef struct {
 } ClientLog;
 
 ClientLog *shm_struct;
-int manej = 0;
 
 void manejador (int sig) {
 	if (sig == SIGUSR1) {
 		printf ("Log %ld: Pid %d: %s\n",shm_struct->logid, shm_struct->processid, shm_struct->logtext);
-		manej++;
-	}	
+	}
 }
 
 int main(int argc, char *argv[]) {
 	int n, m, i;
 	int ret = EXIT_FAILURE;
 	pid_t pid;
-	pid_t array_pid[n];
 	struct sigaction act;
+	sigset_t block;
     sigset_t set;
 
 	if (argc < 3) {
@@ -94,8 +93,33 @@ int main(int argc, char *argv[]) {
 		return ret;
 	}
 
-	/* Inicializar logid a -1 */
+	/* Inicializar logid */
 	shm_struct->logid = -1;
+
+	/* manejar SIGUSR1 */
+	sigemptyset(&(act.sa_mask));
+	act.sa_flags = 0;
+	act.sa_handler = manejador;
+	if (sigaction(SIGUSR1, &act, NULL) < 0) {
+		fprintf(stderr, "Error in sigaction\n");
+		shm_unlink(SHM_NAME);
+		return ret;
+	}
+
+	/* configuracion de sigsupend */
+	sigfillset(&set);
+	sigdelset(&set, SIGUSR1);
+	sigdelset(&set, SIGINT);
+
+	/* bloquear SIGUSR1 para que no llegue antes de que se suspenda */
+	sigemptyset(&block);
+    sigaddset(&block, SIGUSR1);
+    if (sigprocmask(SIG_BLOCK, &block, NULL) < 0) {
+        fprintf(stderr, "Error in sigprocmask\n");
+		shm_unlink(SHM_NAME);
+        return ret;
+    }
+
 
 	/* crear n hijos */
 	for (i = 0; i < n; i++){
@@ -104,27 +128,16 @@ int main(int argc, char *argv[]) {
             perror("fork");
             exit(EXIT_FAILURE);
         }
-        else if (pid){ /* padre */
-            array_pid[i] = pid;
-        }
-        else{ /* hijo */
+        else if (pid == 0) /* hijo */
             break;
-        }
     }
 
+	pid_t ppid = getppid();
+	
 	if (pid){ /* padre */
-
-		/* manejar SIGUSR1 */
-        sigemptyset(&(act.sa_mask));
-        act.sa_flags = 0;
-        act.sa_handler = manejador;
-        if (sigaction(SIGUSR1, &act, NULL) < 0) {
-            fprintf(stderr, "Error in sigaction\n");
-			shm_unlink(SHM_NAME);
-            return ret;
-        }
-
-		while(manej != m*n);
+		do{
+			sigsuspend(&set);
+		}while(shm_struct->logid < m*n - 1);
 
 		/* espera a que acaben todo los hijos */
 		for (i = 0; i < n; i++)
@@ -132,33 +145,32 @@ int main(int argc, char *argv[]) {
 
 		munmap(shm_struct, sizeof(*shm_struct));
     	shm_unlink(SHM_NAME);
-
 		return EXIT_SUCCESS;
 	}
-	//else
 
+	else{
+		for (i = 0; i < m; i++){
+			usleep((rand()%801 + 100) * 1000); /* random entre 100 y 900 ms */
 
-	for (i = 0; i < m; i++){
-		usleep((rand()%801 + 100) * 1000); /* random entre 100 y 900 ms */
+			/* Escribir en la estructura compartida */
+			shm_struct->processid = getpid();
+			shm_struct->logid++;
+			char buf[MAX_MSG]; 
+			getMilClock(buf);
+			memcpy(shm_struct->logtext, buf, MAX_MSG);
 
-		/* Escribir en la estructura compartida */
-		shm_struct->processid = getpid();
-		shm_struct->logid++;
-		char buf[MAX_MSG]; 
-		getMilClock(buf);
-		memcpy(shm_struct->logtext, buf, MAX_MSG);
-
-
-		/* enviar senal SIGUSR1 a padre */
-		if (kill(getppid(), SIGUSR1) < 0){
-			fprintf(stderr, "Error en proceso con pid = %jd al enviar SIGUSR1\n", (intmax_t)getpid());
-			return ret;
+			/* enviar senal SIGUSR1 a padre */
+			if (kill(ppid, SIGUSR1) < 0){
+				fprintf(stderr, "Error en proceso con pid = %jd al enviar SIGUSR1\n", (intmax_t)getpid());
+				return ret;
+			}
 		}
+		/* Unmap the shared memory */
+		munmap(shm_struct, sizeof(*shm_struct));
 
 	}
 
-	/* Unmap the shared memory */
-	munmap(shm_struct, sizeof(*shm_struct));
+
 
 	return EXIT_SUCCESS;
 }

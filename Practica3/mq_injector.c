@@ -47,12 +47,13 @@ int main(int argc, char *argv[]) {
     while (fgets(aux, DOSKB, f)!=NULL){
         if (mq_send(queue, aux, sizeof(aux), 1) == -1) {
             fprintf(stderr, "Error sending message\n");
+            mq_close(queue);
             return EXIT_FAILURE;
         }
     }
 
     char final[10]="Final\0";
-    if (mq_send(queue, final, sizeof(aux), 1) == -1) {
+    if (mq_send(queue, final, sizeof(final), 1) == -1) { //estaba sizeof(aux)
         fprintf(stderr, "Error sending message\n");
         return EXIT_FAILURE;
     }

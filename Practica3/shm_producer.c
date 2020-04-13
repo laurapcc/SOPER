@@ -62,6 +62,7 @@ int main(int argc, char *argv[]) {
     }
 
     e->cola = cola_ini(MAX_COLA);
+    printf("Pointer to shared memory segment: %p\n", (void*)e);
 
     if (sem_init(&(e->empty), 1, MAX_COLA) == -1){
 		fprintf(stderr, "Error creating semaphore\n");
@@ -84,7 +85,7 @@ int main(int argc, char *argv[]) {
         for (int i=0; i<n; i++){
             sem_wait(&(e->empty));
             sem_wait(&(e->mutex));
-            insertar(e->cola, rand());
+            insertar(e->cola, rand()%10);
             sleep(1);
             sem_post(&(e->mutex));
             sem_post(&(e->full));
@@ -94,7 +95,7 @@ int main(int argc, char *argv[]) {
         for (int i=0; i<n; i++){
             sem_wait(&(e->empty));
             sem_wait(&(e->mutex));
-            insertar(e->cola, i);
+            insertar(e->cola, i%10);
             printf("%d\n", i);
             fflush(stdout);
             sleep(1);
@@ -117,8 +118,13 @@ int main(int argc, char *argv[]) {
     /* The daemon executes until press some character */
     getchar();
 
-    /* Free the shared memory */
+    /* Free the structure and shared memory */
+    sem_destroy(&(e->mutex));
+    sem_destroy(&(e->empty));
+    sem_destroy(&(e->full));
+    cola_destroy(e->cola);
     munmap(e, sizeof(*e));
     shm_unlink(SHM_NAME);
+
     return EXIT_SUCCESS;
 }

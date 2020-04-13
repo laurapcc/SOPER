@@ -25,7 +25,6 @@ int main(int argc, char *argv[]) {
     int n;
     char key;
     pid_t pid;
-	pid_t array_pid[n];
     struct sigaction act;
     sigset_t set, set2;
 
@@ -37,6 +36,7 @@ int main(int argc, char *argv[]) {
     n = atoi(argv[1]);
     mq_name = argv[2];
     key = (char)argv[3][0];
+    pid_t array_pid[n];
 
     struct mq_attr attributes = {
         .mq_flags = 0,
@@ -117,8 +117,9 @@ int main(int argc, char *argv[]) {
 
         while (1){
             if (mq_receive(queue, msg, sizeof(msg), NULL) == -1) {
-                if (errno==EINTR){
+                if (errno==EINTR){ // interrupted by a signal handler
                     fprintf(stdout, "%jd: mensajes leídos=%d; caracteres %c encontrados=%d\n", (intmax_t)getpid(), m, key, counter);
+                    fflush(stdout);
                     mq_close(queue);
                     return EXIT_SUCCESS;
                 }
@@ -130,8 +131,8 @@ int main(int argc, char *argv[]) {
             m++;
             if (strcmp(msg, "Final\0")==0){
                 if (kill(ppid, SIGUSR2) < 0){
-				fprintf(stderr, "Error en proceso con pid = %jd al enviar SIGUSR2\n", (intmax_t)ppid);
-				return EXIT_FAILURE;
+                    fprintf(stderr, "Error en proceso con pid = %jd al enviar SIGUSR2\n", (intmax_t)ppid);
+                    return EXIT_FAILURE;
 			    }
             }
             for (int i=0; i<strlen(msg); i++){

@@ -31,6 +31,11 @@ Cola* cola_ini(int N){
     return c;
 }
 
+void cola_destroy(Cola *c){
+    free(c->array);
+    free(c);
+}
+
 void insertar(Cola* c, int i){
     if (c->in==c->out)
         return;

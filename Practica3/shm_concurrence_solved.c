@@ -54,7 +54,6 @@ int main(int argc, char *argv[]) {
 	int n, m, i;
 	int ret = EXIT_FAILURE;
 	pid_t pid;
-	pid_t array_pid[n];
 	struct sigaction act;
 	sigset_t block;
     sigset_t set;
@@ -139,6 +138,8 @@ int main(int argc, char *argv[]) {
             break;
     }
 
+	pid_t ppid = getppid();
+
 	if (pid){ /* padre */
 		sem_post(&(shm_struct->mutex));
 		do{
@@ -170,7 +171,7 @@ int main(int argc, char *argv[]) {
 			//sem_post(&(shm_struct->mutex));
 
 			/* enviar senal SIGUSR1 a padre */
-			if (kill(getppid(), SIGUSR1) < 0){
+			if (kill(ppid, SIGUSR1) < 0){
 				fprintf(stderr, "Error en proceso con pid = %jd al enviar SIGUSR1\n", (intmax_t)getpid());
 				return ret;
 			}
