@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) {
     }
 
     /* inicializamos la cola de la estructura en memoria compartida */
-    e->cola = *cola_ini();
+    cola_ini(&(e->cola));
 
     /* inicializamos los semaforos */
     if (sem_init(&(e->empty), 1, MAX_COLA) == -1){
