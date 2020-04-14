@@ -1,3 +1,12 @@
+/****************************************************************
+* Nombre: mq_injector
+* Autores: Jorge de Miguel y Laura de Paz
+* Grupo de prácticas: 2202
+* Fecha: 13/04/2020
+* Descripcion: Escribe en una cola de mensajes el archivo de texto
+* pasado como argumento en trozos de 2kB
+****************************************************************/
+
 #include <fcntl.h>
 #include <mqueue.h>
 #include <stdio.h>

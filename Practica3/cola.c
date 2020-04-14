@@ -1,3 +1,11 @@
+/****************************************************************
+* Nombre: cola
+* Autores: Jorge de Miguel y Laura de Paz
+* Grupo de prácticas: 2202
+* Fecha: 12/04/2020
+* Descripcion: TAD cola
+****************************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include "cola.h"

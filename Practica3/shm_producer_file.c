@@ -1,3 +1,11 @@
+/****************************************************************
+* Nombre: shm_producer_file
+* Autores: Jorge de Miguel y Laura de Paz
+* Grupo de prácticas: 2202
+* Fecha: 12/04/2020
+* Descripcion: crea elementos y los almacena en una cola, que se
+* encuentra en un archivo
+****************************************************************/
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>

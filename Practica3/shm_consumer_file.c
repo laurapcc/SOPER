@@ -1,3 +1,11 @@
+/****************************************************************
+* Nombre: shm_consumer_file
+* Autores: Jorge de Miguel y Laura de Paz
+* Grupo de prácticas: 2202
+* Fecha: 12/04/2020
+* Descripcion: Consume elementos de la cola, la cual se almacena 
+* en un archivo
+****************************************************************/
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>

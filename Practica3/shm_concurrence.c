@@ -1,3 +1,12 @@
+/****************************************************************
+* Nombre: shm_concurrence
+* Autores: Jorge de Miguel y Laura de Paz
+* Grupo de prácticas: 2202
+* Fecha: 05/04/2020
+* Descripcion: Crea tantos hijos como se le pase como argumento y
+* cada proceso hijo rellenara informacion en la estructura ClientLog
+* El proceso padre terminara una vez hauan terminado todos los hijos
+****************************************************************/
 #include <errno.h>
 #include <fcntl.h>
 #include <math.h>

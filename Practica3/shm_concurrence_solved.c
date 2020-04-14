@@ -1,3 +1,11 @@
+/****************************************************************
+* Nombre: shm_concurrence_solved
+* Autores: Jorge de Miguel y Laura de Paz
+* Grupo de prácticas: 2202
+* Fecha: 05/04/2020
+* Descripcion: Igual que shm_concurrence pero en este caso se trabaja
+* con semaforos para evitar la condicion de carrera
+****************************************************************/
 #include <errno.h>
 #include <fcntl.h>
 #include <math.h>

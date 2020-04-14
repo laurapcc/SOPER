@@ -1,3 +1,12 @@
+/****************************************************************
+* Nombre: mq_workers_pool
+* Autores: Jorge de Miguel y Laura de Paz
+* Grupo de prácticas: 2202
+* Fecha: 13/04/2020
+* Descripcion: crea tantos procesos como se pasen como argumento 
+* y contara el numero de veces que se repite cierto caracter de 
+* cada mensaje que lean de la cola de mensajes
+****************************************************************/
 #include <fcntl.h>
 #include <mqueue.h>
 #include <stdio.h>
