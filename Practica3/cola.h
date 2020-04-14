@@ -3,17 +3,28 @@
 
 #define MAX_COLA 100
 
-//typedef struct _Cola Cola;
+/* Estructura de la cola */
 typedef struct _Cola{
     int array[MAX_COLA];
     int in;
     int out;
 }Cola;
 
-Cola* cola_ini ();
+/*
+*   Funcion encargada de inicializar la cola
+*/
+void cola_ini (Cola* c);
 
+/*
+*   Funcion encargada de insertar el elemento i en la cola c
+*   Al ser una cola circular se actualiza el elemento in con modulo n
+*/
 void insertar(Cola* c, int i);
 
+/*
+*	Funcion encargada de extraer el elemento indicado por out de la cola.
+*	Lo devuelve y actualiza out modulo n
+*/
 int extraer(Cola* c);
 
 #endif
