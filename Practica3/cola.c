@@ -3,17 +3,9 @@
 #include "cola.h"
 
 
-Cola* cola_ini(){
-    Cola *c = NULL;
-
-    c = malloc(sizeof(Cola));
-    if (c==NULL)
-        return NULL;
-
+void cola_ini(Cola* c){
     c->in = 0;
     c->out = 0;
-
-    return c;
 }
 
 void insertar(Cola* c, int i){
