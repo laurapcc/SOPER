@@ -15,7 +15,7 @@ typedef struct {
 	sem_t empty;    /* Anonym semaphore */
     sem_t full;     /* Anonym semaphore */
 	sem_t mutex;    /* Anonym semaphore */
-    Cola *cola;
+    Cola cola;
 } Estructura;
 
 int main(void) {
@@ -34,7 +34,7 @@ int main(void) {
 
     /* Mapeamos el segmento de memoria compartida */
     Estructura *e = mmap(NULL, sizeof(*e),
-        PROT_READ,
+        PROT_READ | PROT_WRITE,
         MAP_SHARED,
         fd_shm,
         0);
@@ -52,20 +52,9 @@ int main(void) {
         histograma[j] = 0;
 
     while (aux != -1){
-        printf("a  \n");
-        fflush(stdout);
         sem_wait(&(e->full));
-        printf("b\n");
-        fflush(stdout);
         sem_wait(&(e->mutex));
-	/* AQUI DA EL PUTO CORE DE LOS COJONES */
-	/* Creo que es por donde inicializo la cola, pero
-	   no se donde inicializarla sino (esta en el producer)*/
-        printf("c\n");
-        fflush(stdout);
-        //aux = extraer(e->cola);
-        printf("%d\n", aux);
-        fflush(stdout);
+        aux = extraer(&(e->cola));
         sem_post(&(e->mutex));
         sem_post(&(e->empty));
 
@@ -73,6 +62,7 @@ int main(void) {
         
     }
 
+    /* Imprimimos el histograma */
     for (j=0; j<10; j++){
         fprintf(stdout, "El número %d ha sido leído %d veces\n", j, histograma[j]);
     }

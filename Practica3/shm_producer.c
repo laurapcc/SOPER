@@ -6,26 +6,29 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <time.h>
 #include "cola.h"
 
 #define SHM_NAME "/shm_consprod"
-#define MAX_COLA 100
 
 typedef struct {
 	sem_t empty;    /* Anonym semaphore */
     sem_t full;     /* Anonym semaphore */
 	sem_t mutex;    /* Anonym semaphore */
-    Cola *cola;
+    Cola cola;
 } Estructura;
 
 int main(int argc, char *argv[]) {
     int n, modo;
+
+    srand (time(NULL));
 
     if (argc!=3){
         fprintf(stdout, "Error en los argumentos de entrada");
         return EXIT_FAILURE;
     }
 
+    /* argumentos de entrada */
     n = atoi(argv[1]);
     modo = atoi(argv[2]);
 
@@ -61,9 +64,11 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    e->cola = cola_ini(MAX_COLA);
+    /* inicializamos la cola de la estructura en memoria compartida */
+    e->cola = *cola_ini();
     printf("Pointer to shared memory segment: %p\n", (void*)e);
 
+    /* inicializamos los semaforos */
     if (sem_init(&(e->empty), 1, MAX_COLA) == -1){
 		fprintf(stderr, "Error creating semaphore\n");
 		shm_unlink(SHM_NAME);
@@ -81,48 +86,46 @@ int main(int argc, char *argv[]) {
 	}
 
     switch (modo){
-    case 0:
+    case 0: // aleatorio
         for (int i=0; i<n; i++){
             sem_wait(&(e->empty));
             sem_wait(&(e->mutex));
-            insertar(e->cola, rand()%10);
-            sleep(1);
+            insertar(&(e->cola), rand()%10);
             sem_post(&(e->mutex));
             sem_post(&(e->full));
+            sleep(1);
         }
         break;
-    case 1:
+    case 1: // secuencial
         for (int i=0; i<n; i++){
             sem_wait(&(e->empty));
             sem_wait(&(e->mutex));
-            insertar(e->cola, i%10);
-            printf("%d\n", i);
-            fflush(stdout);
-            sleep(1);
+            insertar(&(e->cola), i%10);
             sem_post(&(e->mutex));
             sem_post(&(e->full));
+            sleep(1);
         }
         break;
     default:
         break;
     }
 
+    /* incluir -1 en la cola al terminar */
     sem_wait(&(e->empty));
     sem_wait(&(e->mutex));
-    insertar(e->cola, -1);
-    printf("-1");
-    sleep(1);
+    insertar(&(e->cola), -1);
     sem_post(&(e->mutex));
     sem_post(&(e->full));
+    sleep(1);
 
     /* The daemon executes until press some character */
+    printf("Introduce un caracter para terminar");
     getchar();
 
     /* Free the structure and shared memory */
     sem_destroy(&(e->mutex));
     sem_destroy(&(e->empty));
     sem_destroy(&(e->full));
-    cola_destroy(e->cola);
     munmap(e, sizeof(*e));
     shm_unlink(SHM_NAME);
 

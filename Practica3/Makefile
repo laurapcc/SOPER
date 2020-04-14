@@ -76,7 +76,7 @@ concurrence_solved:
 # EJERCICIO 4
 producer:
 	@echo Ejecutando shm_producer
-	@./shm_producer 6 1
+	@./shm_producer 12 0
 
 consumer:
 	@echo Ejecutando shm_consumer
