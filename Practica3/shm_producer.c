@@ -38,13 +38,13 @@ int main(int argc, char *argv[]) {
         S_IRUSR | S_IWUSR);
 
     if (fd_shm == -1) {
-        fprintf(stderr, "Error creating the shared memory segment\n");
+        fprintf(stderr, "Error creando el segmento de memoria\n");
         return EXIT_FAILURE;
     }
 
     /* Truncamos el segmento de memoria compartida */
     if (ftruncate(fd_shm, sizeof(Estructura)) == -1) {
-        fprintf(stderr, "Error resizing the shared memory segment\n");
+        fprintf(stderr, "Error al incrementar el tamanho del segmento de memoria\n");
         shm_unlink(SHM_NAME);
         return EXIT_FAILURE;
     }
@@ -59,28 +59,27 @@ int main(int argc, char *argv[]) {
     close(fd_shm);
 
     if (e == MAP_FAILED) {
-        fprintf(stderr, "Error mapping the shared memory segment\n");
+        fprintf(stderr, "Error al mapear el segmento de memoria\n");
         shm_unlink(SHM_NAME);
         return EXIT_FAILURE;
     }
 
     /* inicializamos la cola de la estructura en memoria compartida */
     e->cola = *cola_ini();
-    printf("Pointer to shared memory segment: %p\n", (void*)e);
 
     /* inicializamos los semaforos */
     if (sem_init(&(e->empty), 1, MAX_COLA) == -1){
-		fprintf(stderr, "Error creating semaphore\n");
+		fprintf(stderr, "Error creando el semaforo\n");
 		shm_unlink(SHM_NAME);
 		return EXIT_FAILURE;
 	}
     if (sem_init(&(e->full), 1, 0) == -1){
-		fprintf(stderr, "Error creating semaphore\n");
+		fprintf(stderr, "Error creando el semaforo\n");
 		shm_unlink(SHM_NAME);
 		return EXIT_FAILURE;
 	}
     if (sem_init(&(e->mutex), 1, 1) == -1){
-		fprintf(stderr, "Error creating semaphore\n");
+		fprintf(stderr, "Error creando el semaforo\n");
 		shm_unlink(SHM_NAME);
 		return EXIT_FAILURE;
 	}
