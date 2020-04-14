@@ -12,9 +12,9 @@
 #define MAX_ARRAY 100
 
 typedef struct {
-	sem_t empty;    /* Anonym semaphore */
+    sem_t empty;    /* Anonym semaphore */
     sem_t full;     /* Anonym semaphore */
-	sem_t mutex;    /* Anonym semaphore */
+    sem_t mutex;    /* Anonym semaphore */
     Cola cola;
 } Estructura;
 
@@ -28,7 +28,7 @@ int main(void) {
         0);
     
     if (fd_shm == -1) {
-        fprintf(stderr, "Error opening the shared memory segment\n");
+        fprintf(stderr, "Error abriendo el segmento de memoria\n");
         return EXIT_FAILURE;
     }
 
@@ -41,16 +41,15 @@ int main(void) {
     close(fd_shm);
 
     if (e == MAP_FAILED) {
-        fprintf(stderr, "Error mapping the shared memory segment\n");
+        fprintf(stderr, "Error mapeando el segmento de memoria\n");
         return EXIT_FAILURE;
     }
-
-    printf("Pointer to shared memory segment: %p\n", (void*)e);
 
     /* inicializamos el histograma a 0 */
     for (j = 0; j < 10; j++)
         histograma[j] = 0;
 
+    /* Leemos números hasta que uno de ellos sea -1 */
     while (aux != -1){
         sem_wait(&(e->full));
         sem_wait(&(e->mutex));
@@ -58,8 +57,7 @@ int main(void) {
         sem_post(&(e->mutex));
         sem_post(&(e->empty));
 
-        histograma[aux]++;
-        
+        histograma[aux]++; 
     }
 
     /* Imprimimos el histograma */
@@ -67,7 +65,7 @@ int main(void) {
         fprintf(stdout, "El número %d ha sido leído %d veces\n", j, histograma[j]);
     }
 
-    /* Unmap the shared memory */
+    /* Desvinculamos la memoria compartida */
     munmap(e, sizeof(*e));
     return EXIT_SUCCESS;
 }
