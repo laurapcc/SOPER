@@ -12,9 +12,9 @@
 #define SHM_NAME "/shm_consprod"
 
 typedef struct {
-	sem_t empty;    /* Anonym semaphore */
+    sem_t empty;    /* Anonym semaphore */
     sem_t full;     /* Anonym semaphore */
-	sem_t mutex;    /* Anonym semaphore */
+    sem_t mutex;    /* Anonym semaphore */
     Cola cola;
 } Estructura;
 
@@ -85,6 +85,7 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
+    /* Insertamos los numeros segun el valor del segundo argumento del programa */
     switch (modo){
     case 0: // aleatorio
         for (int i=0; i<n; i++){
@@ -118,11 +119,11 @@ int main(int argc, char *argv[]) {
     sem_post(&(e->full));
     sleep(1);
 
-    /* The daemon executes until press some character */
+    /* Esperamos a que se introduzca un caracter para terminar el programa */
     printf("Introduce un caracter para terminar");
     getchar();
 
-    /* Free the structure and shared memory */
+    /* Liberamos la memoria y destruimos los semaforos */
     sem_destroy(&(e->mutex));
     sem_destroy(&(e->empty));
     sem_destroy(&(e->full));
