@@ -115,7 +115,6 @@ int main(int argc, char *argv[]) {
 	/* configuracion de sigsupend */
 	sigfillset(&set);
 	sigdelset(&set, SIGUSR1);
-	sigdelset(&set, SIGINT);
 
 	/* bloquear SIGUSR1 para que no llegue antes de que se suspenda */
 	sigemptyset(&block);

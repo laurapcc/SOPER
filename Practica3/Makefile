@@ -2,10 +2,12 @@
 CC = gcc
 ANADIDOS = -g -lrt -lm -lpthread
 CFLAGS = -Wall 
-EXE = shm_concurrence shm_concurrence_solved shm_producer shm_consumer mq_injector mq_workers_pool
+EXE = shm_concurrence shm_concurrence_solved shm_producer shm_consumer shm_producer_file shm_consumer_file mq_injector mq_workers_pool
 #########################################
 OBJECTSPROD = shm_producer.o cola.o
 OBJECTSCONS = shm_consumer.o cola.o
+OBJECTSPRODFILE = shm_producer_file.o cola.o
+OBJECTSCONSFILE = shm_consumer_file.o cola.o
 #########################################
 
 all : $(EXE)
@@ -46,6 +48,20 @@ cola.o: cola.c cola.h
 	$(CC) $(CFLAGS) -c $< $(ANADIDOS)
 
 
+# EJERCICIO 4B OPCIONAL
+shm_producer_file: $(OBJECTSPROD)
+	$(CC) $(CFLAGS) -o $@ $^ $(ANADIDOS)
+
+shm_consumer_file: $(OBJECTSCONS)
+	$(CC) $(CFLAGS) -o $@ $^ $(ANADIDOS)
+
+shm_producer_file.o: shm_producer_file.c cola.h
+	$(CC) $(CFLAGS) -c $< $^ $(ANADIDOS)
+
+shm_consumer_file.o: shm_consumer_file.c cola.h
+	$(CC) $(CFLAGS) -c $< $^ $(ANADIDOS)
+
+
 # EJERCICIO 6
 mq_injector: mq_injector.o
 	$(CC) $(CFLAGS) -o $@ $^ $(ANADIDOS)
@@ -81,6 +97,16 @@ producer:
 consumer:
 	@echo Ejecutando shm_consumer
 	@./shm_consumer
+
+
+# EJERCICIO 4B
+producer_file:
+	@echo Ejecutando shm_producer_file
+	@./shm_producer_file 12 0
+
+consumer_file:
+	@echo Ejecutando shm_consumer_file
+	@./shm_consumer_file
 
 
 # EJERCICIO 6
