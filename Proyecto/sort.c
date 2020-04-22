@@ -213,15 +213,15 @@ Status solve_task(Sort *sort, int level, int part) {
     }
 }
 
-Status sort_single_process(char *file_name, int n_levels, int n_processes, int delay) {
+Status sort_single_process(/*char *file_name, int n_levels, int n_processes, int delay*/Sort* s) {
     int i, j;
-    Sort sort;
+    Sort sort = *s;
 
     /* The data is loaded and the structure initialized. */
-    if (init_sort(file_name, &sort, n_levels, n_processes, delay) == ERROR) {
+    /*if (init_sort(file_name, &sort, n_levels, n_processes, delay) == ERROR) {
         fprintf(stderr, "sort_single_process - init_sort\n");
         return ERROR;
-    }
+    }*/
 
     plot_vector(sort.data, sort.n_elements);
     printf("\nStarting algorithm with %d levels and %d processes...\n", sort.n_levels, sort.n_processes);

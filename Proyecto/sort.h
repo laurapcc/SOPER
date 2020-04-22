@@ -132,6 +132,6 @@ Status solve_task(Sort *sort, int level, int part);
  * @param  delay            Delay for the algorithm.
  * @return                  ERROR in case of error, OK otherwise.
  */
-Status sort_single_process(char *file_name, int n_levels, int n_processes, int delay);
+Status sort_single_process(/*char *file_name, int n_levels, int n_processes, int delay*/Sort* s);
 
 #endif
