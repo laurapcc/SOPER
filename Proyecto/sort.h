@@ -15,6 +15,9 @@
 #define PLOT_PERIOD 1
 #define NO_MID -1
 
+#define SHM_NAME "/shm_proyecto"
+#define MQ_NAME "/mq_proyecto"
+
 /* Type definitions. */
 
 /* Completed flag for the tasks. */
@@ -109,17 +112,32 @@ Status init_sort(char *file_name, Sort *sort, int n_levels, int n_processes, int
  */
 Bool check_task_ready(Sort *sort, int level, int part);
 
+
+//!!!!!!!!!!!!!!!!!!!!!!!!
+//TODO: Borrar esto
+//!!!!!!!!!!!!!!!!!!!!!!!!
 /**
  * Solves a single task of the sorting algorithm.
  * @method solve_task
- * @date   2020-04-09
+ * @date   2020-04-26
  * @author Teaching team of SOPER
  * @param  sort       Pointer to the sort structure.
  * @param  level      Level of the algorithm.
  * @param  part       Part inside the level.
  * @return            ERROR in case of error, OK otherwise.
  */
-Status solve_task(Sort *sort, int level, int part);
+/*Status solve_task(Sort *sort, int level, int part);*/
+
+/**
+ * Solves a single task of the sorting algorithm.
+ * @method solve_task
+ * @date   2020-04-09
+ * @author Jorge de Miguel y Laura de Paz
+ * @param  sort       Puntero a la estructura Sort
+ * @param  task       Tarea a realizar
+ * @return            ERROR in case of error, OK otherwise.
+ */
+Status solve_task(Sort* sort, Task* task);
 
 /**
  * Solves a sorting problem using a single process.
@@ -154,6 +172,6 @@ Status trabajador(Sort* sort, int level, int part);
  * @param  s                Puntero a la estructura sort en memoria compartida
  * @return                  ERROR in case of error, OK otherwise.
  */
-Status sort_multiple_processes(Sort* s);
+Status sort_multiple_processes(Sort* s, mqd_t queue);
 
 #endif

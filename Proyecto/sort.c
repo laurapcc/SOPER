@@ -195,73 +195,122 @@ Bool check_task_ready(Sort *sort, int level, int part) {
     return FALSE;
 }
 
-Status solve_task(Sort *sort, int level, int part) {
+
+//!!!!!!!!!!!!!!!!!!!!!!!!
+//TODO: Borrar esto
+//!!!!!!!!!!!!!!!!!!!!!!!!
+// Status solve_task(Sort *sort, int level, int part) {
+//     /* In the first level, bubble-sort. */
+//     if (sort->tasks[level][part].mid == NO_MID) {
+//         return bubble_sort(\
+//             sort->data + sort->tasks[level][part].ini, \
+//             sort->tasks[level][part].end - sort->tasks[level][part].ini, \
+//             sort->delay);
+//     }
+//     /* In other levels, merge. */
+//     else {
+//         return merge(\
+//             sort->data + sort->tasks[level][part].ini, \
+//             sort->tasks[level][part].mid - sort->tasks[level][part].ini, \
+//             sort->tasks[level][part].end - sort->tasks[level][part].ini, \
+//             sort->delay);
+//     }
+// }
+
+Status solve_task(Sort* sort, Task *task) {
     /* In the first level, bubble-sort. */
-    if (sort->tasks[level][part].mid == NO_MID) {
+    if (task->mid == NO_MID) {
         return bubble_sort(\
-            sort->data + sort->tasks[level][part].ini, \
-            sort->tasks[level][part].end - sort->tasks[level][part].ini, \
+            sort->data + task->ini, \
+            task->end - task->ini, \
             sort->delay);
     }
     /* In other levels, merge. */
     else {
         return merge(\
-            sort->data + sort->tasks[level][part].ini, \
-            sort->tasks[level][part].mid - sort->tasks[level][part].ini, \
-            sort->tasks[level][part].end - sort->tasks[level][part].ini, \
+            sort->data + task->ini, \
+            task->mid - task->ini, \
+            task->end -  task->ini, \
             sort->delay);
     }
 }
 
-Status sort_single_process(char *file_name, int n_levels, int n_processes, int delay) {
-    int i, j;
-    Sort sort;
+// Status sort_single_process(char *file_name, int n_levels, int n_processes, int delay) {
+//     int i, j;
+//     Sort sort;
 
-    /* The data is loaded and the structure initialized. */
-    if (init_sort(file_name, &sort, n_levels, n_processes, delay) == ERROR) {
-        fprintf(stderr, "sort_single_process - init_sort\n");
-        return ERROR;
-    }
+//     /* The data is loaded and the structure initialized. */
+//     if (init_sort(file_name, &sort, n_levels, n_processes, delay) == ERROR) {
+//         fprintf(stderr, "sort_single_process - init_sort\n");
+//         return ERROR;
+//     }
 
-    plot_vector(sort.data, sort.n_elements);
-    printf("\nStarting algorithm with %d levels and %d processes...\n", sort.n_levels, sort.n_processes);
-    /* For each level, and each part, the corresponding task is solved. */
-    for (i = 0; i < sort.n_levels; i++) {
-        for (j = 0; j < get_number_parts(i, sort.n_levels); j++) {
-            solve_task(&sort, i, j);
-            plot_vector(sort.data, sort.n_elements);
-            printf("\n%10s%10s%10s%10s%10s\n", "PID", "LEVEL", "PART", "INI", \
-                "END");
-            printf("%10d%10d%10d%10d%10d\n", getpid(), i, j, \
-                sort.tasks[i][j].ini, sort.tasks[i][j].end);
-        }
-    }
+//     plot_vector(sort.data, sort.n_elements);
+//     printf("\nStarting algorithm with %d levels and %d processes...\n", sort.n_levels, sort.n_processes);
+//     /* For each level, and each part, the corresponding task is solved. */
+//     for (i = 0; i < sort.n_levels; i++) {
+//         for (j = 0; j < get_number_parts(i, sort.n_levels); j++) {
+//             solve_task(&sort, i, j);
+//             plot_vector(sort.data, sort.n_elements);
+//             printf("\n%10s%10s%10s%10s%10s\n", "PID", "LEVEL", "PART", "INI", \
+//                 "END");
+//             printf("%10d%10d%10d%10d%10d\n", getpid(), i, j, \
+//                 sort.tasks[i][j].ini, sort.tasks[i][j].end);
+//         }
+//     }
 
-    plot_vector(sort.data, sort.n_elements);
-    printf("\nAlgorithm completed\n");
+//     plot_vector(sort.data, sort.n_elements);
+//     printf("\nAlgorithm completed\n");
 
-    return OK;
-}
+//     return OK;
+// }
 
 
 Status trabajador(Sort* sort, int level, int part){
+    Task task;
+
     if (sort==NULL)
         return ERROR;
     
-    return solve_task(sort, level, part);
+    /* Crea la cola de mensajes para poder leer de ella */
+    struct mq_attr attributes = {
+        .mq_flags = 0,
+        .mq_maxmsg = 10,
+        .mq_curmsgs = 0,
+        .mq_msgsize = sizeof(Task)
+    };
+
+    mqd_t queue = mq_open(MQ_NAME,
+        O_CREAT | O_RDONLY, 
+        S_IRUSR | S_IWUSR,
+        &attributes);
+
+    if(queue == (mqd_t)-1) {
+        fprintf(stderr, "Error opening the queue\n");
+        return ERROR;
+    }
+
+    /* Lee la tarea de la cola de mansajes */
+    if (mq_receive(queue, (char *)&task, sizeof(Task), NULL) == -1) {
+        perror("message");
+        return ERROR;
+    }
+
+    return solve_task(sort, &task);
 }
 
 
 
-Status sort_multiple_processes(Sort* sort) {
+Status sort_multiple_processes(Sort* sort, mqd_t queue) {
     int i, j;
     pid_t pid;
 
-    plot_vector((*sort).data, (*sort).n_elements);
-    printf("\nStarting algorithm with %d levels and %d processes...\n", (*sort).n_levels, (*sort).n_processes);
+    plot_vector(sort->data, sort->n_elements);
+    printf("\nStarting algorithm with %d levels and %d processes...\n", sort->n_levels, sort->n_processes);
 
-    for (i = 0; i < (*sort).n_levels; i++) {
-        for (j = 0; j < get_number_parts(i, (*sort).n_levels); j++){
+    for (i = 0; i < sort->n_levels; i++) {
+        /* Creamos un hijo por cada tarea */
+        for (j = 0; j < get_number_parts(i, sort->n_levels); j++){
             pid=fork();
             if (pid<0){
                 perror("fork");
@@ -272,21 +321,32 @@ Status sort_multiple_processes(Sort* sort) {
             }
         }
 
+        /* Enviamos las tareas a la cola de mensajes */
+        for (j = 0; j < get_number_parts(i, sort->n_levels); j++){
+            Task task = sort->tasks[i][j];
+            if (mq_send(queue, (char *)&task, sizeof(task), 1) == -1) {
+                fprintf(stderr, "Error sending message\n");
+                return ERROR;
+            }
+        }
+
         /* Esperar a que acaben los hijos */
-        for (j = 0; j < get_number_parts(i, (*sort).n_levels); j++)
+        for (j = 0; j < get_number_parts(i, sort->n_levels); j++)
             wait(NULL);
 
         /* Mostrar estado del sistema */
-        plot_vector((*sort).data, (*sort).n_elements);
+        plot_vector(sort->data, sort->n_elements);
         printf("\n%10s%10s%10s%10s%10s\n", "PID", "LEVEL", "PART", "INI", \
             "END");
         printf("%10d%10d%10d%10d%10d\n", getpid(), i, j, \
-            (*sort).tasks[i][j].ini, (*sort).tasks[i][j].end);
+            sort->tasks[i][j].ini, sort->tasks[i][j].end);
         
     }
 
-    plot_vector((*sort).data, (*sort).n_elements);
+    plot_vector(sort->data, sort->n_elements);
     printf("\nAlgorithm completed\n");
 
+    shm_unlink(SHM_NAME);
+    mq_unlink(MQ_NAME);
     return OK;
 }

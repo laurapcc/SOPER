@@ -16,8 +16,6 @@
 #include <sys/mman.h>
 #include "sort.h"
 
-#define SHM_NAME "/shm_proyecto"
-#define MQ_NAME "/mq_proyecto"
 
 /* Pipes */
 #define READ_PIPE 0
@@ -175,9 +173,7 @@ int main(int argc, char *argv[]) {
     
 
     //return sort_single_process(argv[1], n_levels, n_processes, delay);
-    shm_unlink(SHM_NAME);
-    retval = sort_multiple_processes(s);
+    retval = sort_multiple_processes(s, queue);
     munmap(s, sizeof(*s));
-    mq_unlink(MQ_NAME);
     return retval;
 }
