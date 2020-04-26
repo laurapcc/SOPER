@@ -213,15 +213,15 @@ Status solve_task(Sort *sort, int level, int part) {
     }
 }
 
-Status sort_single_process(/*char *file_name, int n_levels, int n_processes, int delay*/Sort* s) {
+Status sort_single_process(char *file_name, int n_levels, int n_processes, int delay) {
     int i, j;
-    Sort sort = *s;
+    Sort sort;
 
     /* The data is loaded and the structure initialized. */
-    /*if (init_sort(file_name, &sort, n_levels, n_processes, delay) == ERROR) {
+    if (init_sort(file_name, &sort, n_levels, n_processes, delay) == ERROR) {
         fprintf(stderr, "sort_single_process - init_sort\n");
         return ERROR;
-    }*/
+    }
 
     plot_vector(sort.data, sort.n_elements);
     printf("\nStarting algorithm with %d levels and %d processes...\n", sort.n_levels, sort.n_processes);
@@ -238,6 +238,38 @@ Status sort_single_process(/*char *file_name, int n_levels, int n_processes, int
     }
 
     plot_vector(sort.data, sort.n_elements);
+    printf("\nAlgorithm completed\n");
+
+    return OK;
+}
+
+
+
+Status sort_multiple_processes(Sort* sort) {
+    int i, j;
+    pid_t pid;
+
+    plot_vector((*sort).data, (*sort).n_elements);
+    printf("\nStarting algorithm with %d levels and %d processes...\n", (*sort).n_levels, (*sort).n_processes);
+    /* For each level, and each part, the corresponding task is solved. */
+    for (i = 0; i < (*sort).n_levels; i++) {
+        for (j = 0; j < get_number_parts(i, (*sort).n_levels); j++) {
+            pid=fork();
+            if (pid){
+                wait(&pid);
+                plot_vector((*sort).data, (*sort).n_elements);
+                printf("\n%10s%10s%10s%10s%10s\n", "PID", "LEVEL", "PART", "INI", \
+                    "END");
+                printf("%10d%10d%10d%10d%10d\n", getpid(), i, j, \
+                    (*sort).tasks[i][j].ini, (*sort).tasks[i][j].end);
+            }
+            else{
+                return solve_task(sort, i, j);
+            }
+        }
+    }
+
+    plot_vector((*sort).data, (*sort).n_elements);
     printf("\nAlgorithm completed\n");
 
     return OK;

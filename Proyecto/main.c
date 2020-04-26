@@ -19,9 +19,9 @@
 #define SHM_NAME "/shm_proyecto"
 #define MQ_NAME "/mq_proyecto"
 
-/* pipes */
-#define READ 0
-#define WRITE 1
+/* Pipes */
+#define READ_PIPE 0
+#define WRITE_PIPE 1
 
 
 /* Manejador de la senhal SIGUSR1 */
@@ -36,7 +36,7 @@ void manejador_SIGINT(int sig){
 
 
 int main(int argc, char *argv[]) {
-    int i;
+    int i, retval;
     int n_levels, n_processes, delay;
     char* file;
     
@@ -125,7 +125,7 @@ int main(int argc, char *argv[]) {
     for (i = 0; i < n_processes; i++){
         if (pipe(pipe_trab2ilust[i]) == -1 || pipe(pipe_ilust2trab[i]) == -1){
             fprintf(stderr, "Error al crear las tuberia %d\n",i);
-            shm_unlink(fd_shm);
+            shm_unlink(SHM_NAME);
             mq_unlink(MQ_NAME);
             return EXIT_FAILURE;
         }
@@ -160,20 +160,24 @@ int main(int argc, char *argv[]) {
     }
 
     /* Manejamos SIGINT */
-    sigemptyset(&(actInt.sa_mask));
-    actInt.sa_flags = 0;
-    actInt.sa_handler = manejador_SIGINT;
-    if (sigaction(SIGINT, &actInt, NULL) < 0) {
-    	fprintf(stderr, "Error in sigaction (SIGINT)\n");
-		shm_unlink(SHM_NAME);
-        // TODO : liberar semaforos y cola de mensajes
-    	return EXIT_FAILURE;
-    }
+    // sigemptyset(&(actInt.sa_mask));
+    // actInt.sa_flags = 0;
+    // actInt.sa_handler = manejador_SIGINT;
+    // if (sigaction(SIGINT, &actInt, NULL) < 0) {
+    // 	fprintf(stderr, "Error in sigaction (SIGINT)\n");
+	// 	shm_unlink(SHM_NAME);
+    //     mq_unlink(MQ_NAME);
+    //     // TODO : liberar semaforos
+    // 	return EXIT_FAILURE;
+    // }
 
     /***************** CREACION PROCESOS ******************/
+    
 
-
-
-
-    return sort_single_process(/*argv[1], n_levels, n_processes, delay*/s);
+    //return sort_single_process(argv[1], n_levels, n_processes, delay);
+    shm_unlink(SHM_NAME);
+    retval = sort_multiple_processes(s);
+    munmap(s, sizeof(*s));
+    mq_unlink(MQ_NAME);
+    return retval;
 }

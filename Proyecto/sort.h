@@ -132,6 +132,16 @@ Status solve_task(Sort *sort, int level, int part);
  * @param  delay            Delay for the algorithm.
  * @return                  ERROR in case of error, OK otherwise.
  */
-Status sort_single_process(/*char *file_name, int n_levels, int n_processes, int delay*/Sort* s);
+Status sort_single_process(char *file_name, int n_levels, int n_processes, int delay);
+
+/**
+ * Solves a sorting problem using multiple processes.
+ * @method sort_single_process
+ * @date   2020-04-26
+ * @author Jorge de Miguel y Laura de Paz
+ * @param  s                Puntero a la estructura sort en memoria compartida
+ * @return                  ERROR in case of error, OK otherwise.
+ */
+Status sort_multiple_processes(Sort* s);
 
 #endif

@@ -39,7 +39,6 @@ Status print_vector(int *data, int n_elements) {
 
 Status plot_vector(int *data, int n_elements) {
     int i;
-
     if ((!(data)) || (n_elements <= 0)) {
         return ERROR;
     }
