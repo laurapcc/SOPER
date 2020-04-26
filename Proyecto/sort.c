@@ -244,6 +244,14 @@ Status sort_single_process(char *file_name, int n_levels, int n_processes, int d
 }
 
 
+Status trabajador(Sort* sort, int level, int part){
+    if (sort==NULL)
+        return ERROR;
+    
+    return solve_task(sort, level, part);
+}
+
+
 
 Status sort_multiple_processes(Sort* sort) {
     int i, j;
@@ -251,22 +259,30 @@ Status sort_multiple_processes(Sort* sort) {
 
     plot_vector((*sort).data, (*sort).n_elements);
     printf("\nStarting algorithm with %d levels and %d processes...\n", (*sort).n_levels, (*sort).n_processes);
-    /* For each level, and each part, the corresponding task is solved. */
+
     for (i = 0; i < (*sort).n_levels; i++) {
-        for (j = 0; j < get_number_parts(i, (*sort).n_levels); j++) {
+        for (j = 0; j < get_number_parts(i, (*sort).n_levels); j++){
             pid=fork();
-            if (pid){
-                wait(&pid);
-                plot_vector((*sort).data, (*sort).n_elements);
-                printf("\n%10s%10s%10s%10s%10s\n", "PID", "LEVEL", "PART", "INI", \
-                    "END");
-                printf("%10d%10d%10d%10d%10d\n", getpid(), i, j, \
-                    (*sort).tasks[i][j].ini, (*sort).tasks[i][j].end);
+            if (pid<0){
+                perror("fork");
+                return ERROR;
             }
-            else{
-                return solve_task(sort, i, j);
+            else if (pid == 0){
+                return trabajador(sort, i, j);
             }
         }
+
+        /* Esperar a que acaben los hijos */
+        for (j = 0; j < get_number_parts(i, (*sort).n_levels); j++)
+            wait(NULL);
+
+        /* Mostrar estado del sistema */
+        plot_vector((*sort).data, (*sort).n_elements);
+        printf("\n%10s%10s%10s%10s%10s\n", "PID", "LEVEL", "PART", "INI", \
+            "END");
+        printf("%10d%10d%10d%10d%10d\n", getpid(), i, j, \
+            (*sort).tasks[i][j].ini, (*sort).tasks[i][j].end);
+        
     }
 
     plot_vector((*sort).data, (*sort).n_elements);
