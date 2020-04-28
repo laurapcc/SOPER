@@ -376,6 +376,7 @@ Status sort_multiple_processes(Sort* sort, mqd_t queue) {
     /* Creamos n_processes trabajadores */
     for (j = 0; j < sort->n_processes; j++){
         pidHijos[j]=fork();
+
         if (pidHijos[j]<0){
             perror("fork");
             return ERROR;
@@ -398,10 +399,14 @@ Status sort_multiple_processes(Sort* sort, mqd_t queue) {
         /* configuracion de sigsupend */
         sigfillset(&setUsr1);
         sigdelset(&setUsr1, SIGUSR1);
+        sigdelset(&setUsr1, SIGINT);
 
         do{
             sigsuspend(&setUsr1);
-        }while(check_nivel_completed(sort, i) == FALSE);
+            printf("check_sig (suspend) = %d\n",check_sig);
+        }while(check_nivel_completed(sort, i) == FALSE && check_sig==0);
+
+        if (check_sig==1) break;
 
         /* Mostrar estado del sistema */
         plot_vector(sort->data, sort->n_elements);
@@ -411,8 +416,16 @@ Status sort_multiple_processes(Sort* sort, mqd_t queue) {
             sort->tasks[i][j].ini, sort->tasks[i][j].end);
     }
 
-    plot_vector(sort->data, sort->n_elements);
-    printf("\nAlgorithm completed\n");
+    switch(check_sig){
+        case 0:
+            plot_vector(sort->data, sort->n_elements);
+            printf("\nAlgorithm completed\n");
+            break;
+        case 1:
+            plot_vector(sort->data, sort->n_elements);
+            printf("\nAlgorithm failed\n");
+            break;
+    }
     
     /* Mandamos la señal SIGTERM para que terminen los hijos */
     for (j = 0; j < get_number_parts(i, sort->n_levels); j++){

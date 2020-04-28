@@ -18,6 +18,9 @@
 #define SHM_NAME "/shm_proyecto"
 #define MQ_NAME "/mq_proyecto"
 
+/* Variable global */
+int check_sig;
+
 /* Type definitions. */
 
 /* Completed flag for the tasks. */

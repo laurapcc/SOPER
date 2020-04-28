@@ -21,7 +21,6 @@
 #define READ_PIPE 0
 #define WRITE_PIPE 1
 
-
 /* Manejador de la senhal SIGUSR1 */
 void manejador(int sig){
     return;
@@ -29,6 +28,8 @@ void manejador(int sig){
 
 /* Manejador de la senhal SIGINT */
 void manejador_SIGINT(int sig){
+    printf("sigint\n");
+    check_sig = 1;
     return;
 }
 
@@ -54,6 +55,7 @@ int main(int argc, char *argv[]) {
     file = argv[1];
     n_levels = atoi(argv[2]);
     n_processes = atoi(argv[3]);
+    check_sig = 0;
     if (argc > 4) {
         delay = 1e6 * atoi(argv[4]);
     }
@@ -153,16 +155,15 @@ int main(int argc, char *argv[]) {
     }
 
     /* Manejamos SIGINT */
-    // sigemptyset(&(actInt.sa_mask));
-    // actInt.sa_flags = 0;
-    // actInt.sa_handler = manejador_SIGINT;
-    // if (sigaction(SIGINT, &actInt, NULL) < 0) {
-    // 	fprintf(stderr, "Error in sigaction (SIGINT)\n");
-	// 	shm_unlink(SHM_NAME);
-    //     mq_unlink(MQ_NAME);
-    //     // TODO : liberar semaforos
-    // 	return EXIT_FAILURE;
-    // }
+    sigemptyset(&(actInt.sa_mask));
+    actInt.sa_flags = 0;
+    actInt.sa_handler = manejador_SIGINT;
+    if (sigaction(SIGINT, &actInt, NULL) < 0) {
+    	fprintf(stderr, "Error in sigaction (SIGINT)\n");
+		shm_unlink(SHM_NAME);
+        mq_unlink(MQ_NAME);
+    	return EXIT_FAILURE;
+    }
     
 
     //return sort_single_process(argv[1], n_levels, n_processes, delay);
