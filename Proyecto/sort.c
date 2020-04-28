@@ -6,6 +6,7 @@
 #include <mqueue.h>
 #include <semaphore.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/mman.h>
@@ -16,6 +17,7 @@
 #include <unistd.h>
 #include "sort.h"
 #include "utils.h"
+
 
 Status bubble_sort(int *vector, int n_elements, int delay) {
     int i, j;
@@ -144,6 +146,7 @@ Status init_sort(char *file_name, Sort *sort, int n_levels, int n_processes, int
     /* The data is divided between the tasks, which are also initialized. */
     block_size = sort->n_elements / get_number_parts(0, sort->n_levels);
     modulus = sort->n_elements % get_number_parts(0, sort->n_levels);
+
     sort->tasks[0][0].completed = INCOMPLETE;
     sort->tasks[0][0].ini = 0;
     sort->tasks[0][0].end = block_size + (modulus > 0);
@@ -163,7 +166,17 @@ Status init_sort(char *file_name, Sort *sort, int n_levels, int n_processes, int
             sort->tasks[i][j].end = sort->tasks[i - 1][2 * j + 1].end;
         }
     }
-
+    
+    /* Inicializamos el semaforo de cada tarea */
+    for (i = 0; i < n_levels; i++) {
+        for (j = 0; j < get_number_parts(i, sort->n_levels); j++) {
+            if (sem_init(&(sort->tasks[i][j].mutex), 1, 1) == -1){ 
+                perror("semaforo");
+                return ERROR;
+            }
+        }
+    }
+    
     return OK;
 }
 
@@ -196,26 +209,41 @@ Bool check_task_ready(Sort *sort, int level, int part) {
 }
 
 
-//!!!!!!!!!!!!!!!!!!!!!!!!
-//TODO: Borrar esto
-//!!!!!!!!!!!!!!!!!!!!!!!!
-// Status solve_task(Sort *sort, int level, int part) {
-//     /* In the first level, bubble-sort. */
-//     if (sort->tasks[level][part].mid == NO_MID) {
-//         return bubble_sort(\
-//             sort->data + sort->tasks[level][part].ini, \
-//             sort->tasks[level][part].end - sort->tasks[level][part].ini, \
-//             sort->delay);
-//     }
-//     /* In other levels, merge. */
-//     else {
-//         return merge(\
-//             sort->data + sort->tasks[level][part].ini, \
-//             sort->tasks[level][part].mid - sort->tasks[level][part].ini, \
-//             sort->tasks[level][part].end - sort->tasks[level][part].ini, \
-//             sort->delay);
-//     }
-// }
+Bool check_nivel_completed(Sort* sort, int level){
+    int i;
+    int ret;
+
+    if (sort==NULL || level<0)
+        return FALSE;
+
+    for (i = 0; i < get_number_parts(level, sort->n_levels); i++){
+        sem_wait(&(sort->tasks[level][i].mutex));
+        ret = (sort->tasks[level][i].completed == COMPLETED);
+        sem_post(&(sort->tasks[level][i].mutex));
+        if (ret == FALSE)
+            return FALSE;
+    }
+    return TRUE;
+}
+
+
+/* Status solve_task(Sort *sort, int level, int part) {*/
+    /* In the first level, bubble-sort. */
+    /*if (sort->tasks[level][part].mid == NO_MID) {
+        return bubble_sort(\
+            sort->data + sort->tasks[level][part].ini, \
+            sort->tasks[level][part].end - sort->tasks[level][part].ini, \
+            sort->delay);
+    }*/
+    /* In other levels, merge. */
+    /*else {
+        return merge(\
+            sort->data + sort->tasks[level][part].ini, \
+            sort->tasks[level][part].mid - sort->tasks[level][part].ini, \
+            sort->tasks[level][part].end - sort->tasks[level][part].ini, \
+            sort->delay);
+    }
+} */
 
 Status solve_task(Sort* sort, Task *task) {
     /* In the first level, bubble-sort. */
@@ -266,18 +294,28 @@ Status solve_task(Sort* sort, Task *task) {
 // }
 
 
-Status trabajador(Sort* sort, int level, int part){
-    Task task;
+Status trabajador(Sort* sort){
+    int pos[2];
+    Task* task;
+    sigset_t set;
 
     if (sort==NULL)
         return ERROR;
+
+    /* Bloqueo de todas las senhales menos SIGTERM */
+    sigfillset(&set);
+	sigdelset(&set, SIGTERM);
+    if (sigprocmask(SIG_BLOCK, &set, NULL) < 0) {
+        perror("sigprocmask");
+        return ERROR;
+    }
     
     /* Crea la cola de mensajes para poder leer de ella */
     struct mq_attr attributes = {
         .mq_flags = 0,
         .mq_maxmsg = 10,
         .mq_curmsgs = 0,
-        .mq_msgsize = sizeof(Task)
+        .mq_msgsize = 2*sizeof(int)
     };
 
     mqd_t queue = mq_open(MQ_NAME,
@@ -290,49 +328,80 @@ Status trabajador(Sort* sort, int level, int part){
         return ERROR;
     }
 
-    /* Lee la tarea de la cola de mansajes */
-    if (mq_receive(queue, (char *)&task, sizeof(Task), NULL) == -1) {
-        perror("message");
-        return ERROR;
-    }
+    while (1){
+        /* Lee la tarea de la cola de mansajes */
+        if (mq_receive(queue, (char *)pos, 2*sizeof(int), NULL) == -1) {
+            if (errno==EINTR){          // llegada de una señal externa
+                perror("senal recibida");
+                mq_close(queue);
+                return OK;
+            }
+            else{
+                perror("message");
+                mq_close(queue);
+                return ERROR;
+            }
+        }
 
-    return solve_task(sort, &task);
+        task = &(sort->tasks[pos[0]][pos[1]]);
+
+        if (solve_task(sort, task) == ERROR){
+            fprintf(stderr, "Error solving task\n");
+            mq_close(queue);
+            return ERROR;
+        }
+        
+        sem_wait(&(task->mutex));
+        task->completed = COMPLETED;
+        sem_post(&(task->mutex));
+        
+        if(kill(sort->ppid, SIGUSR1)){
+            perror("kill SIGUSR1");
+            mq_close(queue);
+            return ERROR;
+        }
+    }
 }
 
 
 
 Status sort_multiple_processes(Sort* sort, mqd_t queue) {
     int i, j;
-    pid_t pid;
+    pid_t pidHijos[sort->n_processes];
+    sigset_t setUsr1;
 
     plot_vector(sort->data, sort->n_elements);
     printf("\nStarting algorithm with %d levels and %d processes...\n", sort->n_levels, sort->n_processes);
 
-    for (i = 0; i < sort->n_levels; i++) {
-        /* Creamos un hijo por cada tarea */
-        for (j = 0; j < get_number_parts(i, sort->n_levels); j++){
-            pid=fork();
-            if (pid<0){
-                perror("fork");
-                return ERROR;
-            }
-            else if (pid == 0){
-                return trabajador(sort, i, j);
-            }
+    /* Creamos n_processes trabajadores */
+    for (j = 0; j < sort->n_processes; j++){
+        pidHijos[j]=fork();
+        if (pidHijos[j]<0){
+            perror("fork");
+            return ERROR;
         }
+        else if (pidHijos[j] == 0){
+            return trabajador(sort);
+        }
+    }
 
+    for (i = 0; i < sort->n_levels; i++) {
         /* Enviamos las tareas a la cola de mensajes */
         for (j = 0; j < get_number_parts(i, sort->n_levels); j++){
-            Task task = sort->tasks[i][j];
-            if (mq_send(queue, (char *)&task, sizeof(task), 1) == -1) {
+            int task[2] = {i, j};
+            if (mq_send(queue, (char *)task, 2*sizeof(int), 1) == -1) {
                 fprintf(stderr, "Error sending message\n");
                 return ERROR;
             }
         }
 
-        /* Esperar a que acaben los hijos */
-        for (j = 0; j < get_number_parts(i, sort->n_levels); j++)
-            wait(NULL);
+        /* configuracion de sigsupend */
+        sigfillset(&setUsr1);
+        sigdelset(&setUsr1, SIGUSR1);
+
+        do{
+            sigsuspend(&setUsr1);
+        }while(check_nivel_completed(sort, i) == FALSE);
 
         /* Mostrar estado del sistema */
         plot_vector(sort->data, sort->n_elements);
@@ -340,11 +409,20 @@ Status sort_multiple_processes(Sort* sort, mqd_t queue) {
             "END");
         printf("%10d%10d%10d%10d%10d\n", getpid(), i, j, \
             sort->tasks[i][j].ini, sort->tasks[i][j].end);
-        
     }
 
     plot_vector(sort->data, sort->n_elements);
     printf("\nAlgorithm completed\n");
+    
+    /* Mandamos la señal SIGTERM para que terminen los hijos */
+    for (j = 0; j < get_number_parts(i, sort->n_levels); j++){
+        if(kill(pidHijos[j], SIGTERM)){
+            perror("kill SIGTERM");
+            shm_unlink(SHM_NAME);
+            mq_unlink(MQ_NAME);
+            return ERROR;
+        }
+    }
 
     shm_unlink(SHM_NAME);
     mq_unlink(MQ_NAME);

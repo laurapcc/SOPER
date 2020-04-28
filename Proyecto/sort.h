@@ -34,6 +34,7 @@ typedef struct {
     int ini;
     int mid;
     int end;
+    sem_t mutex;
 } Task;
 
 /* Structure for the sorting problem. */
@@ -112,6 +113,16 @@ Status init_sort(char *file_name, Sort *sort, int n_levels, int n_processes, int
  */
 Bool check_task_ready(Sort *sort, int level, int part);
 
+/**
+ * Checks if all the tasks in a level are completed
+ * @method check_nivel_completed
+ * @date   2020-04-26
+ * @author Jorge de Miguel y Laura de Paz
+ * @param  sort             Pointer to the sort structure.
+ * @param  level            Level of the algorithm.
+ * @return                  FALSE if it at least one task is not completed, TRUE otherwise.
+ */
+Bool check_nivel_completed(Sort* sort, int level);
 
 //!!!!!!!!!!!!!!!!!!!!!!!!
 //TODO: Borrar esto
@@ -127,6 +138,7 @@ Bool check_task_ready(Sort *sort, int level, int part);
  * @return            ERROR in case of error, OK otherwise.
  */
 /*Status solve_task(Sort *sort, int level, int part);*/
+//!!!!!!!!!!!!!!!!!!!!!!!
 
 /**
  * Solves a single task of the sorting algorithm.
@@ -158,11 +170,9 @@ Status sort_single_process(char *file_name, int n_levels, int n_processes, int d
  * @date   2020-04-26
  * @author Jorge de Miguel y Laura de Paz
  * @param  s                Puntero a la estructura sort en memoria compartida
- * @param level             Nivel de la tarea a realizar
- * @param part              Parte de la tarea a realizar
  * @return                  ERROR in case of error, OK otherwise.
  */
-Status trabajador(Sort* sort, int level, int part);
+Status trabajador(Sort* sort);
 
 /**
  * Solves a sorting problem using multiple processes.
@@ -170,6 +180,7 @@ Status trabajador(Sort* sort, int level, int part);
  * @date   2020-04-26
  * @author Jorge de Miguel y Laura de Paz
  * @param  s                Puntero a la estructura sort en memoria compartida
+ * @param queue             Cola de mensajes
  * @return                  ERROR in case of error, OK otherwise.
  */
 Status sort_multiple_processes(Sort* s, mqd_t queue);

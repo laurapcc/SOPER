@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
     
     struct sigaction actUsr1;
     struct sigaction actInt;
-    sigset_t setUsr1, set2;
+    sigset_t setUsr1;
 
     if (argc < 4) {
         fprintf(stderr, "Usage: %s <FILE> <N_LEVELS> <N_PROCESSES> [<DELAY>]\n", argv[0]);
@@ -104,11 +104,11 @@ int main(int argc, char *argv[]) {
         .mq_flags = 0,
         .mq_maxmsg = 10,
         .mq_curmsgs = 0,
-        .mq_msgsize = sizeof(Task)
+        .mq_msgsize = 2*sizeof(int)
     };
 
     mqd_t queue = mq_open(MQ_NAME,
-        O_CREAT | O_WRONLY, 
+        O_WRONLY | O_CREAT | O_EXCL, 
         S_IRUSR | S_IWUSR, 
         &attributes);
 
@@ -129,9 +129,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    /********************* SEMAFOROS **********************/
-    //! cuantos semaforos hay que crear?? uno por tarea??
-
 
     /*************** OTRAS CONFIGURACIONES ****************/
     /* Manejamos SIGUSR1 */
@@ -142,7 +139,6 @@ int main(int argc, char *argv[]) {
     	fprintf(stderr, "Error in sigaction (SIGUSR1)\n");
 		shm_unlink(SHM_NAME);
         mq_unlink(MQ_NAME);
-        // TODO : liberar semaforos
     	return EXIT_FAILURE;
     }
 
@@ -153,7 +149,6 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Error in sigprocmask\n");
 		shm_unlink(SHM_NAME);
         mq_unlink(MQ_NAME);
-        // TODO : liberar semaforos
         return EXIT_FAILURE;
     }
 
@@ -168,8 +163,6 @@ int main(int argc, char *argv[]) {
     //     // TODO : liberar semaforos
     // 	return EXIT_FAILURE;
     // }
-
-    /***************** CREACION PROCESOS ******************/
     
 
     //return sort_single_process(argv[1], n_levels, n_processes, delay);
