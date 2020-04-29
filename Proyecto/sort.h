@@ -141,22 +141,6 @@ Bool check_task_ready(Sort *sort, int level, int part);
  */
 Bool check_nivel_completed(Sort* sort, int level);
 
-//!!!!!!!!!!!!!!!!!!!!!!!!
-//TODO: Borrar esto
-//!!!!!!!!!!!!!!!!!!!!!!!!
-/**
- * Solves a single task of the sorting algorithm.
- * @method solve_task
- * @date   2020-04-26
- * @author Teaching team of SOPER
- * @param  sort       Pointer to the sort structure.
- * @param  level      Level of the algorithm.
- * @param  part       Part inside the level.
- * @return            ERROR in case of error, OK otherwise.
- */
-/*Status solve_task(Sort *sort, int level, int part);*/
-//!!!!!!!!!!!!!!!!!!!!!!!
-
 /**
  * Solves a single task of the sorting algorithm.
  * @method solve_task
@@ -167,19 +151,6 @@ Bool check_nivel_completed(Sort* sort, int level);
  * @return            ERROR in case of error, OK otherwise.
  */
 Status solve_task(Sort* sort, Task* task);
-
-/**
- * Solves a sorting problem using a single process.
- * @method sort_single_process
- * @date   2020-04-09
- * @author Teaching team of SOPER
- * @param  file_name        File with the data.
- * @param  n_levels         Total number of levels in the algorithm.
- * @param  n_processes      Number of processes.
- * @param  delay            Delay for the algorithm.
- * @return                  ERROR in case of error, OK otherwise.
- */
-Status sort_single_process(char *file_name, int n_levels, int n_processes, int delay);
 
 /**
  * Codigo principal del hijo que se encargara de realizar las diferentes tareas.
@@ -207,9 +178,8 @@ Status ilustrador(Sort* sort);
  * @date   2020-04-26
  * @author Jorge de Miguel y Laura de Paz
  * @param  s                Puntero a la estructura sort en memoria compartida
- * @param queue             Cola de mensajes
  * @return                  ERROR in case of error, OK otherwise.
  */
-Status sort_multiple_processes(Sort* s, mqd_t queue);
+Status sort_multiple_processes(Sort* s);
 
 #endif

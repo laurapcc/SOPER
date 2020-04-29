@@ -30,6 +30,7 @@ void manejador_SIGINT(int sig){
         kill(pids[j], SIGTERM);
     }
 
+    fprintf(stdout, "\n\n\n ALGORITHM STOPPED \n\n\n");
     shm_unlink(SHM_NAME);
     mq_unlink(MQ_NAME);
     exit(EXIT_FAILURE);
@@ -54,6 +55,7 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
+    /* Asignacion de parametros de entrada a variables */
     file = argv[1];
     n_levels = atoi(argv[2]);
     n_processes = atoi(argv[3]);
@@ -95,7 +97,7 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    /********** INICIALIZACION DE LA ESTRUCTURA ***********/
+    /******** INICIALIZACION DE LA ESTRUCTURA SORT *********/
     if (init_sort(file, s, n_levels, n_processes, delay) == ERROR){
         fprintf(stderr, "Error al crear la estructura sort\n");
         shm_unlink(SHM_NAME);
@@ -103,23 +105,6 @@ int main(int argc, char *argv[]) {
     }
     global_n_proc = s->n_processes;
 
-    /****************** COLA DE MENSAJES ******************/
-    struct mq_attr attributes = {
-        .mq_flags = 0,
-        .mq_maxmsg = 10,
-        .mq_curmsgs = 0,
-        .mq_msgsize = 2*sizeof(int)
-    };
-
-    mqd_t queue = mq_open(MQ_NAME,
-        O_WRONLY | O_CREAT | O_EXCL, 
-        S_IRUSR | S_IWUSR, 
-        &attributes);
-
-    if (queue == (mqd_t)-1) {
-        fprintf(stderr, "Error opening the queue\n");
-        return EXIT_FAILURE;
-    }
 
     /*************** OTRAS CONFIGURACIONES ****************/
     /* Manejamos SIGUSR1 */
@@ -154,9 +139,8 @@ int main(int argc, char *argv[]) {
     	return EXIT_FAILURE;
     }
     
-
-    //return sort_single_process(argv[1], n_levels, n_processes, delay);
-    retval = sort_multiple_processes(s, queue);
+    
+    retval = sort_multiple_processes(s);
     munmap(s, sizeof(*s));
     return retval;
 }
