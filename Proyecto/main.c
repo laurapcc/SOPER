@@ -17,10 +17,6 @@
 #include "sort.h"
 
 
-/* Pipes */
-#define READ_PIPE 0
-#define WRITE_PIPE 1
-
 /* Manejador de la senhal SIGUSR1 */
 void manejador(int sig){
     return;
@@ -28,14 +24,20 @@ void manejador(int sig){
 
 /* Manejador de la senhal SIGINT */
 void manejador_SIGINT(int sig){
-    printf("sigint\n");
-    check_sig = 1;
-    return;
+    /* Mandamos la señal SIGTERM para que terminen los hijos */
+    int j;
+    for (j = 0; j <= global_n_proc; j++){
+        kill(pids[j], SIGTERM);
+    }
+
+    shm_unlink(SHM_NAME);
+    mq_unlink(MQ_NAME);
+    exit(EXIT_FAILURE);
 }
 
 
 int main(int argc, char *argv[]) {
-    int i, retval;
+    int retval;
     int n_levels, n_processes, delay;
     char* file;
     
@@ -55,7 +57,6 @@ int main(int argc, char *argv[]) {
     file = argv[1];
     n_levels = atoi(argv[2]);
     n_processes = atoi(argv[3]);
-    check_sig = 0;
     if (argc > 4) {
         delay = 1e6 * atoi(argv[4]);
     }
@@ -100,6 +101,7 @@ int main(int argc, char *argv[]) {
         shm_unlink(SHM_NAME);
         return EXIT_FAILURE;
     }
+    global_n_proc = s->n_processes;
 
     /****************** COLA DE MENSAJES ******************/
     struct mq_attr attributes = {
@@ -118,19 +120,6 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Error opening the queue\n");
         return EXIT_FAILURE;
     }
-
-    /********** TUBERIAS TRABAJADOR - ILUSTRADOR **********/
-    int pipe_trab2ilust[n_processes][2]; /* n_processes trabajadores y 1 ilustrador */
-    int pipe_ilust2trab[n_processes][2];
-    for (i = 0; i < n_processes; i++){
-        if (pipe(pipe_trab2ilust[i]) == -1 || pipe(pipe_ilust2trab[i]) == -1){
-            fprintf(stderr, "Error al crear las tuberia %d\n",i);
-            shm_unlink(SHM_NAME);
-            mq_unlink(MQ_NAME);
-            return EXIT_FAILURE;
-        }
-    }
-
 
     /*************** OTRAS CONFIGURACIONES ****************/
     /* Manejamos SIGUSR1 */

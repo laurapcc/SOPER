@@ -66,3 +66,6 @@ run_small: sort
 
 run_medium: sort
 	@./sort ./Data/DataMedium.dat 10 15 15
+
+run_large: sort
+	@./sort ./Data/DataLarge.dat 10 30 10

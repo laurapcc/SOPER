@@ -18,8 +18,22 @@
 #define SHM_NAME "/shm_proyecto"
 #define MQ_NAME "/mq_proyecto"
 
+/* Pipes */
+#define READ_PIPE 0
+#define WRITE_PIPE 1
+
+/* Ratio de refresco de ilustrador */
+#define SECS 1
+
 /* Variable global */
-int check_sig;
+int pids[MAX_PARTS];
+int global_n_proc;
+
+int pipe_trab2ilust[2];
+int pipe_ilust2trab[2];
+
+int estado[3];
+int alarma;
 
 /* Type definitions. */
 
@@ -168,8 +182,8 @@ Status solve_task(Sort* sort, Task* task);
 Status sort_single_process(char *file_name, int n_levels, int n_processes, int delay);
 
 /**
- * Solves a sorting problem using multiple processes.
- * @method sort_single_process
+ * Codigo principal del hijo que se encargara de realizar las diferentes tareas.
+ * @method trabajador
  * @date   2020-04-26
  * @author Jorge de Miguel y Laura de Paz
  * @param  s                Puntero a la estructura sort en memoria compartida
@@ -178,8 +192,18 @@ Status sort_single_process(char *file_name, int n_levels, int n_processes, int d
 Status trabajador(Sort* sort);
 
 /**
+ * Codigo principal del ilustrador.
+ * @method ilustrador
+ * @date   2020-04-28
+ * @author Jorge de Miguel y Laura de Paz
+ * @param  s                Puntero a la estructura sort en memoria compartida
+ * @return                  ERROR in case of error, OK otherwise.
+ */
+Status ilustrador(Sort* sort);
+
+/**
  * Solves a sorting problem using multiple processes.
- * @method sort_single_process
+ * @method sort_multiple_processes
  * @date   2020-04-26
  * @author Jorge de Miguel y Laura de Paz
  * @param  s                Puntero a la estructura sort en memoria compartida

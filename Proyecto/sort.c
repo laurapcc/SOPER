@@ -293,23 +293,56 @@ Status solve_task(Sort* sort, Task *task) {
 //     return OK;
 // }
 
+/* Manejador SIGALARM */
+void manejador_sigalarm(int sig){
+    char c;
+    alarma = 1;
+    
+    ssize_t nbytes = write(pipe_trab2ilust[WRITE_PIPE], &estado, 3*sizeof(int));
+    if(nbytes == -1){
+        perror("write");
+        exit(EXIT_FAILURE);
+    }
+    nbytes = read(pipe_ilust2trab[READ_PIPE], &c, sizeof(char));
+    if (nbytes == -1){
+        perror("read");
+        exit(EXIT_FAILURE);
+    }
+    if (alarm(SECS)){
+        fprintf(stderr, "Existe una alarma previa establecida\n");
+    }
+}
 
 Status trabajador(Sort* sort){
     int pos[2];
     Task* task;
     sigset_t set;
+    struct sigaction act;
 
     if (sort==NULL)
         return ERROR;
+    
+    close(pipe_trab2ilust[READ_PIPE]);
+    close(pipe_ilust2trab[WRITE_PIPE]);
 
     /* Bloqueo de todas las senhales menos SIGTERM */
     sigfillset(&set);
 	sigdelset(&set, SIGTERM);
+    sigdelset(&set, SIGALRM);
     if (sigprocmask(SIG_BLOCK, &set, NULL) < 0) {
         perror("sigprocmask");
         return ERROR;
     }
-    
+
+    /* manejar la senal de la alarma */
+    sigemptyset(&(act.sa_mask));
+    act.sa_flags = 0;
+    act.sa_handler = manejador_sigalarm;
+    if (sigaction(SIGALRM, &act, NULL) < 0) {
+        perror("sigaction");
+        exit(EXIT_FAILURE);
+    }
+
     /* Crea la cola de mensajes para poder leer de ella */
     struct mq_attr attributes = {
         .mq_flags = 0,
@@ -328,13 +361,23 @@ Status trabajador(Sort* sort){
         return ERROR;
     }
 
+    if (alarm(SECS)){
+        fprintf(stderr, "Existe una alarma previa establecida\n");
+    }
     while (1){
+        estado[0] = getpid();
+        estado[1] = -1;
+        estado[2] = -1;
         /* Lee la tarea de la cola de mansajes */
         if (mq_receive(queue, (char *)pos, 2*sizeof(int), NULL) == -1) {
-            if (errno==EINTR){          // llegada de una señal externa
+            if (errno==EINTR && alarma==0){          // llegada de una señal externa
                 perror("senal recibida");
                 mq_close(queue);
                 return OK;
+            }
+            else if (alarma==1){
+                alarma = 0;
+                continue;
             }
             else{
                 perror("message");
@@ -343,7 +386,19 @@ Status trabajador(Sort* sort){
             }
         }
 
+        /* Actualiza la tarea en la que esta trabajando */
+        estado[0] = getpid();
+        estado[1] = pos[0];
+        estado[2] = pos[1];
+
         task = &(sort->tasks[pos[0]][pos[1]]);
+
+        do{
+            alarma=0;
+            sem_wait(&(task->mutex)); 
+        } while (alarma==1);
+        task->completed = PROCESSING;
+        sem_post(&(task->mutex));
 
         if (solve_task(sort, task) == ERROR){
             fprintf(stderr, "Error solving task\n");
@@ -351,7 +406,10 @@ Status trabajador(Sort* sort){
             return ERROR;
         }
         
-        sem_wait(&(task->mutex));
+        do{
+            alarma=0;
+            sem_wait(&(task->mutex));
+        } while (alarma==1);
         task->completed = COMPLETED;
         sem_post(&(task->mutex));
         
@@ -363,19 +421,89 @@ Status trabajador(Sort* sort){
     }
 }
 
+Status ilustrador(Sort* sort){
+    int i, j ,k;
+    char ready = 'r';
+    sigset_t set;
+    ssize_t nbytes = 0;
+    int tasks[sort->n_processes][3];
+
+    if (sort == NULL)
+        return ERROR;
+
+    /* Bloqueo de todas las senhales menos SIGTERM */
+    sigfillset(&set);
+	sigdelset(&set, SIGTERM);
+    if (sigprocmask(SIG_BLOCK, &set, NULL) < 0) {
+        perror("sigprocmask");
+        return ERROR;
+    }
+
+    /* cerrar los descriptores de entrada y salida de las tuberias */
+    close(pipe_trab2ilust[WRITE_PIPE]);
+    close(pipe_ilust2trab[READ_PIPE]);
+
+    plot_vector(sort->data, sort->n_elements);
+    printf("\nStarting algorithm with %d levels and %d processes...\n", sort->n_levels, sort->n_processes);
+
+    while (1){
+        for (i = 0; i < sort->n_processes; i++){
+            nbytes = read(pipe_trab2ilust[READ_PIPE], tasks[i], 3*sizeof(int));
+            if (nbytes == -1){
+                perror("read");
+                return ERROR;
+            }
+        }
+
+        /* Mostrar estado del sistema */
+        plot_vector(sort->data, sort->n_elements);
+        printf("\n%10s%10s%10s%10s%10s\n", "PID", "LEVEL", "PART", "INI", "END");
+        for (k = 0; k < sort->n_processes; k++){
+            i = tasks[k][1];
+            j = tasks[k][2];
+            if (i == -1){
+                printf("%10d%10d%10d%10d%10d\n", tasks[k][0], -1, -1, \
+                    -1, -1);
+            }
+            else{
+                printf("%10d%10d%10d%10d%10d\n", tasks[k][0], i, j, \
+                    sort->tasks[i][j].ini, sort->tasks[i][j].end);
+            }
+        }
+
+        for (k = 0; k < sort->n_processes; k++){
+            nbytes = write(pipe_ilust2trab[WRITE_PIPE], &ready, sizeof(char));
+            if(nbytes == -1){
+                perror("write");
+                exit(EXIT_FAILURE);
+            }
+        }
+
+    }
+    return OK;
+}
+
 
 
 Status sort_multiple_processes(Sort* sort, mqd_t queue) {
     int i, j;
     pid_t pidHijos[sort->n_processes];
     sigset_t setUsr1;
+    alarma=0;
 
-    plot_vector(sort->data, sort->n_elements);
-    printf("\nStarting algorithm with %d levels and %d processes...\n", sort->n_levels, sort->n_processes);
+    /********** TUBERIAS TRABAJADOR - ILUSTRADOR **********/
+    if (pipe(pipe_trab2ilust) == -1 || pipe(pipe_ilust2trab) == -1){
+        perror("pipe");
+        shm_unlink(SHM_NAME);
+        mq_unlink(MQ_NAME);
+        return EXIT_FAILURE;
+    }
+
 
     /* Creamos n_processes trabajadores */
     for (j = 0; j < sort->n_processes; j++){
-        pidHijos[j]=fork();
+        pidHijos[j] = fork();
+        pids[j] = pidHijos[j];
 
         if (pidHijos[j]<0){
             perror("fork");
@@ -385,6 +513,18 @@ Status sort_multiple_processes(Sort* sort, mqd_t queue) {
             return trabajador(sort);
         }
     }
+    
+    /* Crear el hijo ilustrador */
+    pidHijos[sort->n_processes] = fork();
+    pids[sort->n_processes] = pidHijos[sort->n_processes];
+    if (pidHijos[sort->n_processes]<0){
+        perror("fork");
+        return ERROR;
+    }
+    else if (pidHijos[j] == 0){ 
+        return ilustrador(sort);
+    }
+    
 
     for (i = 0; i < sort->n_levels; i++) {
         /* Enviamos las tareas a la cola de mensajes */
@@ -393,6 +533,11 @@ Status sort_multiple_processes(Sort* sort, mqd_t queue) {
             if (mq_send(queue, (char *)task, 2*sizeof(int), 1) == -1) {
                 fprintf(stderr, "Error sending message\n");
                 return ERROR;
+            }
+            else{
+                sem_wait(&(sort->tasks[i][j].mutex));
+                sort->tasks[i][j].completed = SENT;
+                sem_post(&(sort->tasks[i][j].mutex));
             }
         }
 
@@ -403,32 +548,13 @@ Status sort_multiple_processes(Sort* sort, mqd_t queue) {
 
         do{
             sigsuspend(&setUsr1);
-            printf("check_sig (suspend) = %d\n",check_sig);
-        }while(check_nivel_completed(sort, i) == FALSE && check_sig==0);
+        }while(check_nivel_completed(sort, i) == FALSE);
 
-        if (check_sig==1) break;
-
-        /* Mostrar estado del sistema */
-        plot_vector(sort->data, sort->n_elements);
-        printf("\n%10s%10s%10s%10s%10s\n", "PID", "LEVEL", "PART", "INI", \
-            "END");
-        printf("%10d%10d%10d%10d%10d\n", getpid(), i, j, \
-            sort->tasks[i][j].ini, sort->tasks[i][j].end);
+        
     }
 
-    switch(check_sig){
-        case 0:
-            plot_vector(sort->data, sort->n_elements);
-            printf("\nAlgorithm completed\n");
-            break;
-        case 1:
-            plot_vector(sort->data, sort->n_elements);
-            printf("\nAlgorithm failed\n");
-            break;
-    }
-    
     /* Mandamos la señal SIGTERM para que terminen los hijos */
-    for (j = 0; j < get_number_parts(i, sort->n_levels); j++){
+    for (j = 0; j <= sort->n_processes; j++){
         if(kill(pidHijos[j], SIGTERM)){
             perror("kill SIGTERM");
             shm_unlink(SHM_NAME);
@@ -437,6 +563,7 @@ Status sort_multiple_processes(Sort* sort, mqd_t queue) {
         }
     }
 
+    printf("\nAlgorithm completed\n");
     shm_unlink(SHM_NAME);
     mq_unlink(MQ_NAME);
     return OK;
